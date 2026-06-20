@@ -3,7 +3,7 @@ services:
     name: friendship-star-map
     runtime: node
     plan: free
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
+    buildCommand: npm install --no-audit --no-fund && npm run build
     startCommand: node server.mjs
     healthCheckPath: /
     envVars:
