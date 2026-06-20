@@ -48,91 +48,78 @@ const DIMENSIONS = ['信任', '互惠', '支持', '边界', '理解', '修复'];
 
 const coreQuestions = [
   {
-    id: 'trust-secret', dimension: '信任', title: '秘密保管局',
-    self: '{name}告诉我一件不想让别人知道的事，我通常会？',
-    other: '我告诉{name}一件不想让别人知道的事，{name}通常会？',
-    options: [['按约定保密，也确认哪些能说', 4], ['默认不向任何人提起', 3], ['匿名向可靠的人求助', 2], ['会暗示给共同认识的人', 1], ['当成谈资或冲突武器', 0], ['没遇到过 / 不确定', null]],
+    id: 'trust-secret', dimension: '信任', title: '“你别告诉别人”挑战',
+    self: '{name}半夜发来一句：“这事我只敢告诉你。”第二天有人旁敲侧击，我会？',
+    other: '我半夜对{name}说：“这事我只敢告诉你。”第二天有人旁敲侧击，{name}会？',
+    options: [['直接开启保密模式，有风险也先私下提醒对方', 4], ['装作完全不知道，不让话题继续', 3], ['憋不住时，只找和这件事毫无关系的人匿名聊聊', 2], ['给共同朋友一点“应该不算泄密”的提示', 1], ['先说“你千万别外传”，然后讲了', 0], ['这种剧情还没发生过', null]],
   },
   {
-    id: 'trust-cancel', dimension: '信任', title: '放鸽子说明书',
-    self: '我临时不能赴约时，面对{name}，我通常会？',
-    other: '{name}临时不能赴约时，通常会怎样告诉我？',
-    options: [['尽早说明，并主动重新安排', 4], ['如实说明，之后再约', 3], ['先含糊取消，之后解释', 2], ['编一个更好接受的理由', 1], ['直接消失或继续否认', 0], ['没遇到过 / 不确定', null]],
+    id: 'trust-cancel', dimension: '信任', title: '放鸽子求生局',
+    self: '离见面只剩两小时，我突然去不了了。面对已经准备出门的{name}，我会？',
+    other: '离见面只剩两小时，{name}突然来不了了。面对已经准备出门的我，{name}会？',
+    options: [['马上说实话、认真道歉，并主动给出新的时间', 4], ['如实说明，等缓过来再约', 3], ['先发一句“临时有事”，晚点再解释', 2], ['编一个听起来比较不讨人嫌的理由', 1], ['假装没看见时间，等对方来问', 0], ['我们还没互相放过鸽子', null]],
   },
   {
-    id: 'mutual-contact', dimension: '互惠', title: '谁先发消息',
-    self: '我和{name}一阵子没联系时，我通常会？',
-    other: '我和{name}一阵子没联系时，{name}通常会？',
-    options: [['想起对方就自然联系', 4], ['过一阵会主动问候', 3], ['多半等待，但会认真回应', 2], ['通常只简单回复', 1], ['只有需要时才联系', 0], ['说不清 / 不适用', null]],
+    id: 'mutual-contact', dimension: '互惠', title: '聊天框长草以后',
+    self: '我和{name}的聊天框安静了半个月。某天刷到一个对方一定会笑的视频，我会？',
+    other: '我和{name}的聊天框安静了半个月。{name}刷到一个我一定会笑的视频，会？',
+    options: [['立刻甩过来，顺手问一句最近怎么样', 4], ['先收藏，找个不突兀的时候发来', 3], ['等对方先开口，但一开口就能接上', 2], ['想了想还是算了，怕显得突然', 1], ['只有需要帮忙时才会重新出现', 0], ['我们的聊天框从没长过草', null]],
   },
   {
-    id: 'mutual-help', dimension: '互惠', title: '临时求援',
-    self: '{name}临时需要帮助，而我也有安排时，我通常会？',
-    other: '我临时需要帮助，而{name}也有安排时，{name}通常会？',
-    options: [['弄清需要，协调或找替代办法', 4], ['做得到就帮，做不到会说明', 3], ['表达关心，但不一定行动', 2], ['含糊答应，之后拖延', 1], ['故意回避或消失', 0], ['没遇到过 / 不确定', null]],
+    id: 'mutual-help', dimension: '互惠', title: '“救命，明早要交”',
+    self: '晚上十一点，{name}突然发来“救命”，但我也已经累到只剩3%的电。我会？',
+    other: '晚上十一点，我突然向{name}喊“救命”，但{name}也已经累到只剩3%的电。{name}会？',
+    options: [['先搞清最急的部分，能帮就帮，不能也一起找办法', 4], ['明确告诉对方我还能帮到几点、帮到哪', 3], ['先安慰几句，等明天再看情况', 2], ['嘴上说“马上”，然后越拖越不敢回', 1], ['开启飞行模式，当作没看见', 0], ['还没触发过深夜求救事件', null]],
   },
   {
-    id: 'support-fail', dimension: '支持', title: '失利现场',
-    self: '{name}的重要尝试失败后，我通常会？',
-    other: '我的重要尝试失败后，{name}通常会？',
-    options: [['先听，再问想要哪种支持', 4], ['认真安慰，之后再关心', 3], ['鼓励一下，很快转开话题', 2], ['马上分析哪里做错了', 1], ['轻视、比较或嘲笑', 0], ['没遇到过 / 不确定', null]],
+    id: 'support-fail', dimension: '支持', title: '努力翻车现场',
+    self: '{name}准备很久的事失败了，只发来一句：“算了，当我没说。”我会？',
+    other: '我准备很久的事失败了，只对{name}说：“算了，当我没说。”{name}会？',
+    options: [['先陪着，不急着修理情绪，再问想听安慰还是办法', 4], ['认真听完，过几天还会记得回来问', 3], ['发一大段加油打气，希望对方快点振作', 2], ['立刻复盘：我早就觉得这个地方有问题', 1], ['拿别人的成功作比较，试图“刺激一下”', 0], ['还没一起经历过这种翻车', null]],
   },
   {
-    id: 'support-news', dimension: '支持', title: '好消息放大器',
-    self: '{name}兴奋地分享好消息时，我通常会？',
-    other: '我兴奋地分享好消息时，{name}通常会？',
-    options: [['真诚高兴，追问并一起庆祝', 4], ['认真回应，肯定它的意义', 3], ['礼貌祝贺，很快转开话题', 2], ['立刻讲自己的更大成就', 1], ['泼冷水或贬低', 0], ['没遇到过 / 不确定', null]],
+    id: 'support-news', dimension: '支持', title: '喜讯广播站',
+    self: '{name}连发八个感叹号，说终于拿到了特别想要的机会。我第一反应会是？',
+    other: '我连发八个感叹号，说终于拿到了特别想要的机会。{name}第一反应会是？',
+    options: [['比本人还激动，追问细节并认真庆祝', 4], ['真心替对方开心，让对方把故事讲完', 3], ['回一句“牛啊”，然后继续忙自己的', 2], ['顺势讲起自己最近更厉害的一件事', 1], ['先提醒别高兴太早，免得之后失望', 0], ['我们还没播报过这种喜讯', null]],
   },
   {
-    id: 'boundary-space', dimension: '边界', title: '暂时静音',
-    self: '{name}说“今天不太想聊”，我通常会？',
-    other: '我说“今天不太想聊”时，{name}通常会？',
-    options: [['接受并留出空间', 4], ['问一句，得到拒绝后停止', 3], ['有点失落，但不会追问', 2], ['再劝几次，怕对方憋着', 1], ['生气、冷脸或连续追问', 0], ['没遇到过 / 不确定', null]],
+    id: 'boundary-space', dimension: '边界', title: '社交电量只剩1%',
+    self: '{name}说：“我今天电量见底，不想聊天，但不是针对你。”我会？',
+    other: '我对{name}说：“我今天电量见底，不想聊天，但不是针对你。”{name}会？',
+    options: [['回一句“收到，好好充电”，然后真的留出空间', 4], ['确认对方安全后就不再追问', 3], ['心里有点失落，但不会把情绪丢给对方', 2], ['再劝几次，觉得说出来才会好一点', 1], ['开始连环追问：你是不是对我有意见', 0], ['我们还没遇过低电量模式', null]],
   },
   {
-    id: 'boundary-no', dimension: '边界', title: '拒绝不是背叛',
-    self: '{name}拒绝我的请求或邀请时，我通常会？',
-    other: '我拒绝{name}的请求或邀请时，{name}通常会？',
-    options: [['接受拒绝，不要求证明理由', 4], ['会失望，但尊重决定', 3], ['问一次原因，不再继续', 2], ['反复讨价还价', 1], ['内疚、冷战或报复', 0], ['没遇到过 / 不确定', null]],
+    id: 'boundary-no', dimension: '边界', title: '这次真的不行',
+    self: '我很想让{name}陪我去，但{name}只说：“这次真的不行。”我会？',
+    other: '{name}很想让我陪着去，但我只说：“这次真的不行。”{name}会？',
+    options: [['接受这个“不”，不逼对方提交理由证明', 4], ['会失望，但仍然尊重决定', 3], ['问一次是不是有什么顾虑，然后收住', 2], ['再磨几轮：就这一次嘛，真的不行吗', 1], ['冷下来，让对方为拒绝我感到内疚', 0], ['还没有遇到过这种拒绝', null]],
   },
   {
-    id: 'understand-mood', dimension: '理解', title: '情绪天气预报',
-    self: '我发现{name}状态和平时不一样时，我通常会？',
-    other: '{name}发现我状态和平时不一样时，{name}通常会？',
-    options: [['温和询问，让对方选择', 4], ['表达关心，留出空间', 3], ['先观察，等对方开口', 2], ['猜原因并直接给建议', 1], ['贴标签或强迫解释', 0], ['没有注意过 / 不确定', null]],
+    id: 'understand-mood', dimension: '理解', title: '一句“没事”但不像没事',
+    self: '{name}回我“没事哈哈”，但这个“哈哈”明显和平时不一样。我会？',
+    other: '我回{name}“没事哈哈”，但这个“哈哈”明显和平时不一样。{name}会？',
+    options: [['轻轻点破：“感觉不像没事，想说时我在”', 4], ['先表达关心，再把开口权留给对方', 3], ['注意到了，但会等对方自己说', 2], ['根据蛛丝马迹直接推理并给解决方案', 1], ['认定对方在闹情绪，逼着现在说清楚', 0], ['我分辨不出不同版本的“哈哈”', null]],
   },
   {
-    id: 'understand-view', dimension: '理解', title: '观点不在同一颗星',
-    self: '我和{name}在重要观点上不一致时，我通常会？',
-    other: '我和{name}在重要观点上不一致时，{name}通常会？',
-    options: [['先理解，再说明不同', 4], ['坦率表达并尊重分歧', 3], ['为了不冲突而换话题', 2], ['不断证明自己更有道理', 1], ['嘲笑或上升到人格', 0], ['没遇到过 / 不确定', null]],
+    id: 'understand-view', dimension: '理解', title: '谁也说服不了谁',
+    self: '我和{name}聊到一个重要话题，越聊越发现：我们真的站在两边。我会？',
+    other: '我和{name}聊到一个重要话题，越聊越发现：我们真的站在两边。{name}会？',
+    options: [['先弄懂对方为什么这样想，再说自己的不同', 4], ['坦率表达，但允许这局没有赢家', 3], ['赶紧换话题，别让气氛坏掉', 2], ['继续加码论据，直到对方认输', 1], ['从观点上升到“你这个人就是有问题”', 0], ['我们还没聊到过这么分叉的话题', null]],
   },
   {
-    id: 'repair-hurt', dimension: '修复', title: '踩到尾巴之后',
-    self: '{name}说“你刚才让我不舒服”时，我通常会？',
-    other: '我说“你刚才让我不舒服”时，{name}通常会？',
-    options: [['听完整、具体道歉并补救', 4], ['认真道歉，也说明原意', 3], ['很快说对不起，希望翻篇', 2], ['暂时回避，等对方消气', 1], ['说对方敏感或反咬一口', 0], ['没遇到过 / 不确定', null]],
+    id: 'repair-hurt', dimension: '修复', title: '“你那句话有点扎我”',
+    self: '{name}突然认真地说：“你刚才那句话有点扎我。”我会？',
+    other: '我突然认真地对{name}说：“你刚才那句话有点扎我。”{name}会？',
+    options: [['先听清扎在哪里，认真道歉，再商量怎么补回来', 4], ['承认造成了伤害，也解释当时真正想表达什么', 3], ['马上说对不起，希望这页能快点翻过去', 2], ['先躲开，觉得等对方不生气就好了', 1], ['脱口而出：“你是不是太敏感了？”', 0], ['我们还没这样直接说过不舒服', null]],
   },
   {
-    id: 'repair-heat', dimension: '修复', title: '争执过热保护',
-    self: '我和{name}的争执越来越激烈时，我通常会？',
-    other: '我和{name}的争执越来越激烈时，{name}通常会？',
-    options: [['暂停，并约定回来沟通', 4], ['放慢语气，聚焦当前问题', 3], ['沉默离开，不说明何时谈', 2], ['继续争到对方不再回应', 1], ['辱骂、威胁或公开内容', 0], ['没有明显争执 / 不确定', null]],
+    id: 'repair-heat', dimension: '修复', title: '争吵CPU过热',
+    self: '我和{name}越说越快，已经开始翻旧账，脑子也快烧了。我会？',
+    other: '我和{name}越说越快，已经开始翻旧账，脑子也快烧了。{name}会？',
+    options: [['喊暂停，并说清楚什么时候回来把这件事讲完', 4], ['主动降速，只谈眼前这一件事', 3], ['突然安静或离开，但不说还会不会回来聊', 2], ['继续输出，非得当场分出输赢', 1], ['说狠话、威胁绝交，或者把聊天发给别人看', 0], ['我们的CPU还没一起过热过', null]],
   },
 ];
-
-const bonusQuestions = [
-  ['信任', '不太好听的真话', '我担心{name}正在做伤害自己的决定时，我会？'],
-  ['互惠', '谁来定计划', '我和{name}安排见面或一起玩时，我会？'],
-  ['支持', '现实压力包', '{name}最近忙乱、生病或压力很大时，我会？'],
-  ['边界', '发出去之前', '我想分享涉及{name}的照片或聊天时，我会？'],
-  ['理解', '被记住的小事', '涉及{name}的偏好、雷区和重要日子时，我会？'],
-  ['修复', '道歉后的下一集', '我和{name}谈妥一个矛盾之后，我会？'],
-].map(([dimension, title, self], index) => ({
-  id: `bonus-${index}`, dimension, title, self,
-  other: self.replace('我会？', '{name}会？').replace('我和{name}', '{name}和我'),
-  options: [['会主动照顾彼此的需要', 4], ['多数时候能做到', 3], ['需要提醒才会注意', 2], ['常按自己的习惯处理', 1], ['明知介意仍会忽略', 0], ['没遇到过 / 不确定', null]],
-}));
 
 const replaceName = (text, name) => text.replaceAll('{name}', name || '对方');
 
@@ -140,7 +127,7 @@ const buildSummary = (answerMap, currentLevel, expectedLevel) => ({
   currentLevel,
   expectedLevel,
   dimensions: DIMENSIONS.map((dimension) => {
-    const related = [...coreQuestions, ...bonusQuestions].filter((question) => question.dimension === dimension);
+    const related = coreQuestions.filter((question) => question.dimension === dimension);
     const collect = (perspective) => related
       .map((question) => answerMap[`${question.id}-${perspective}`])
       .filter((value) => typeof value === 'number');
@@ -172,9 +159,8 @@ export function App() {
   const [perspective, setPerspective] = useState(INITIAL_DRAFT?.perspective || 'self');
   const [selected, setSelected] = useState(null);
   const [answers, setAnswers] = useState(INITIAL_DRAFT?.answers || {});
-  const [mode, setMode] = useState(INITIAL_DRAFT?.mode || 'core');
   const [infoOpen, setInfoOpen] = useState(false);
-  const questions = mode === 'core' ? coreQuestions : bonusQuestions;
+  const questions = coreQuestions;
   const question = questions[questionIndex];
   const me = room?.participants.find((participant) => participant.id === session?.participantId);
   const partner = room?.participants.find((participant) => participant.id !== session?.participantId);
@@ -192,10 +178,10 @@ export function App() {
   useEffect(() => {
     if (!session || !roomCode) return;
     localStorage.setItem(`star-draft-${roomCode}`, JSON.stringify({
-      screen: ['assess', 'waiting', 'results'].includes(screen) ? screen : undefined,
-      currentLevel, expectedLevel, questionIndex, perspective, answers, mode,
+      screen: ['assess', 'levels', 'waiting', 'results'].includes(screen) ? screen : undefined,
+      currentLevel, expectedLevel, questionIndex, perspective, answers,
     }));
-  }, [answers, currentLevel, expectedLevel, mode, perspective, questionIndex, roomCode, screen, session]);
+  }, [answers, currentLevel, expectedLevel, perspective, questionIndex, roomCode, screen, session]);
 
   useEffect(() => {
     if (!session || !roomCode) return undefined;
@@ -229,7 +215,7 @@ export function App() {
     const counterpart = room.participants.find((participant) => participant.id !== session.participantId);
     if (current) setOtherName(current.otherName);
     if (counterpart) setMyName(counterpart.otherName);
-    if (room.status === 'active' && screen === 'room') setScreen('levels');
+    if (room.status === 'active' && screen === 'room') setScreen('assess');
     if (room.revealReady && screen === 'waiting') setScreen('results');
   }, [room, screen, session]);
 
@@ -245,9 +231,8 @@ export function App() {
   }, [answers, perspective, question]);
 
   const completedRounds = useMemo(() => {
-    const prefix = mode === 'core' ? '' : 'bonus-';
-    return questions.filter((q) => answers[`${q.id}-self`] !== undefined && answers[`${q.id}-other`] !== undefined && q.id.startsWith(prefix)).length;
-  }, [answers, mode, questions]);
+    return questions.filter((q) => answers[`${q.id}-self`] !== undefined && answers[`${q.id}-other`] !== undefined).length;
+  }, [answers, questions]);
   const myProgress = Math.round((completedRounds / questions.length) * 100);
   const partnerProgress = partner?.progress ?? 0;
 
@@ -323,13 +308,10 @@ export function App() {
     }
   };
 
-  const beginQuestions = () => {
-    setMode('core');
-    setQuestionIndex(0);
-    setPerspective('self');
-    setSelected(null);
-    setScreen('assess');
-    postAction({ type: 'progress', progress: 0 });
+  const submitReflection = () => {
+    const summary = buildSummary(answers, currentLevel, expectedLevel);
+    postAction({ type: 'submit', consent: true, summary });
+    setScreen('waiting');
   };
 
   const confirmAnswer = () => {
@@ -348,14 +330,8 @@ export function App() {
     postAction({ type: 'progress', progress: Math.round((nextCompleted / questions.length) * 100) });
     if (questionIndex < questions.length - 1) {
       setQuestionIndex(questionIndex + 1);
-    } else if (mode === 'core') {
-      const summary = buildSummary(nextAnswers, currentLevel, expectedLevel);
-      postAction({ type: 'submit', consent: true, summary });
-      setScreen('waiting');
     } else {
-      const summary = buildSummary(nextAnswers, currentLevel, expectedLevel);
-      postAction({ type: 'submit', consent: true, summary });
-      setScreen('results');
+      setScreen('levels');
     }
   };
 
@@ -369,27 +345,18 @@ export function App() {
       setPerspective('other');
       return;
     }
-    setScreen('levels');
+    setScreen('room');
   };
 
   const reopenAnswers = async () => {
     await postAction({ type: 'reopen', progress: Math.min(99, myProgress) });
-    setMode('core');
     setQuestionIndex(coreQuestions.length - 1);
     setPerspective('other');
     setScreen('assess');
   };
 
-  const startBonus = () => {
-    setMode('bonus');
-    setQuestionIndex(0);
-    setPerspective('self');
-    setSelected(null);
-    setScreen('assess');
-  };
-
   const dimensionScores = useMemo(() => DIMENSIONS.map((dimension) => {
-    const related = [...coreQuestions, ...bonusQuestions].filter((q) => q.dimension === dimension);
+    const related = coreQuestions.filter((q) => q.dimension === dimension);
     const own = related.map((q) => answers[`${q.id}-self`]).filter((v) => typeof v === 'number');
     const other = related.map((q) => answers[`${q.id}-other`]).filter((v) => typeof v === 'number');
     const avg = (values) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : 2.5;
@@ -462,16 +429,19 @@ export function App() {
 
         {screen === 'levels' && (
           <section className="screen levels-screen">
-            <div className="room-status"><Check weight="bold" /> {myName}与{otherName}已确认称呼</div>
-            <div className="chapter-heading"><span>01</span><div><h2>我们现在在哪一层？</h2><p>选择最接近你真实感受的一项</p></div></div>
+            <div className="room-status"><Check weight="bold" /> 12个情境已完成 · 最后再看等级</div>
+            <div className="chapter-heading"><span>13</span><div><h2>此刻，我觉得我们在哪一层？</h2><p>现在再选，答案不会影响前面的情境题</p></div></div>
             <div className="level-list">
               {LEVELS.map(([level, title, desc]) => <button key={level} className={currentLevel === level ? 'selected' : ''} onClick={() => setCurrentLevel(level)}><b>Lv.{level} {title}</b><small>{desc}</small>{currentLevel === level && <Check weight="bold" />}</button>)}
             </div>
-            <div className="chapter-heading compact"><span>02</span><div><h2>我期待走到哪里？</h2><p>期待是愿望，不是对{otherName}的要求</p></div></div>
+            <div className="chapter-heading compact"><span>愿望</span><div><h2>我希望以后走到哪里？</h2><p>这是我的愿望，不是给{otherName}布置的任务</p></div></div>
             <div className="expect-row">
               {LEVELS.map(([level]) => <button key={level} className={expectedLevel === level ? 'selected' : ''} onClick={() => setExpectedLevel(level)}>Lv.{level}</button>)}
             </div>
-            <button className="primary-button" onClick={beginQuestions}><RocketLaunch weight="fill" /> 进入12个核心关卡</button>
+            <div className="answer-actions">
+              <button className="secondary-button" onClick={() => { setQuestionIndex(coreQuestions.length - 1); setPerspective('other'); setScreen('assess'); }}><ArrowLeft weight="bold" /> 返回修改</button>
+              <button className="primary-button" onClick={submitReflection}><RocketLaunch weight="fill" /> 锁定感受，等待揭晓</button>
+            </div>
           </section>
         )}
 
@@ -487,7 +457,7 @@ export function App() {
               <button className="add-question-button" onClick={() => setCustomOpen(true)} disabled={outgoingQuestions.length >= 3}><Plus weight="bold" /> 加一题</button>
             </div>
             <div className="stage-strip">
-              <span className="done"><Check /> 目前等级</span><span className="done"><Check /> 期待等级</span><span className="active"><Sparkle /> {mode === 'core' ? '核心关卡' : '隐藏关卡'}</span>
+              <span className="active"><Sparkle /> 情境闯关</span><span>最后评级</span><span>共同星图</span>
             </div>
             <div className="question-meta"><span>第 {questionIndex + 1} 关 · {question.dimension}</span><b>{question.title}</b></div>
             <div className="perspective-switch" role="tablist">
@@ -550,15 +520,14 @@ export function App() {
               <div><small>{otherName}认为目前</small><b>{partnerSummary?.currentLevel ? `Lv.${partnerSummary.currentLevel}.0` : '—'}</b><span>{LEVELS.find((level) => level[0] === partnerSummary?.currentLevel)?.[1] || '等待'}</span></div>
             </div>
             <div className="score-section">
-              <div className="section-title"><h2>六维感受</h2><span>{mode === 'bonus' ? '完整星图' : '标准清晰度'}</span></div>
+              <div className="section-title"><h2>六维感受</h2><span>12关共同星图</span></div>
               {dimensionScores.map(({ dimension, own }) => {
                 const received = partnerSummary?.dimensions?.find((item) => item.dimension === dimension)?.other;
                 return <div className="score-row" key={dimension}><b>{dimension}</b><div><small>我对自己</small><ProgressBar value={own / 4 * 100} /></div><div><small>{otherName}眼中的我</small><ProgressBar value={(received ?? 2.5) / 4 * 100} tone="violet" /></div></div>;
               })}
             </div>
             <div className="insight"><Sparkle weight="fill" /><div><b>最值得聊聊：边界</b><p>你们对“留出空间”的感受不太一样，可以交换一个具体例子。</p></div></div>
-            {mode === 'core' && <button className="primary-button" onClick={startBonus}><Planet weight="duotone" /> 探索6个隐藏关卡</button>}
-            {mode === 'bonus' && <div className="completion-note"><Check weight="bold" /> 完整星图已生成</div>}
+            <div className="completion-note"><Check weight="bold" /> 共同星图已生成</div>
             <button className="secondary-button" onClick={() => setScreen('lobby')}>重新开始</button>
           </section>
         )}
