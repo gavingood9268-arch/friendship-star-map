@@ -1,539 +1,213 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft,
-  Check,
-  CircleNotch,
-  Copy,
-  Info,
-  LinkSimple,
-  PaperPlaneTilt,
-  LockKey,
-  Planet,
-  Plus,
-  RocketLaunch,
-  Sparkle,
-  UsersThree,
+  ArrowRight, Check, Copy, Crown, GameController, Info, LockKey,
+  PaperPlaneTilt, Play, ShareNetwork, Sparkle, UsersThree,
 } from '@phosphor-icons/react';
 
-const loadStoredJson = (key) => {
-  try {
-    return JSON.parse(localStorage.getItem(key) || sessionStorage.getItem(key) || 'null');
-  } catch {
-    return null;
-  }
+const AVATARS = [
+  '/assets/avatar-lin.png', '/assets/avatar-zhou.png', '/assets/avatar-tao.png',
+  '/assets/avatar-yu.png', '/assets/avatar-qiao.png',
+];
+const ACCENTS = ['#36d9ff', '#ff8a28', '#ff3d95', '#b8f337', '#b986ff'];
+const REACTIONS = [
+  { text: '就是TA', src: '/assets/reaction-ta.png' },
+  { text: '稳了', src: '/assets/reaction-steady.png' },
+  { text: '太懂了', src: '/assets/reaction-understand.png' },
+  { text: '别看我', src: '/assets/reaction-dontlook.png' },
+];
+const DEVICE_ID = (() => {
+  const saved = localStorage.getItem('party-device-id');
+  if (saved) return saved;
+  const next = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+  localStorage.setItem('party-device-id', next);
+  return next;
+})();
+const INITIAL_ROOM = new URLSearchParams(location.search).get('room')?.toUpperCase() || '';
+const loadSession = (code) => {
+  try { return JSON.parse(localStorage.getItem(`party-room-${code}`) || 'null'); } catch { return null; }
 };
 
-const getDeviceId = () => {
-  const stored = localStorage.getItem('star-map-device');
-  if (stored) return stored;
-  const created = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
-  localStorage.setItem('star-map-device', created);
-  return created;
-};
-
-const DEVICE_ID = getDeviceId();
-const INITIAL_ROOM = new URLSearchParams(window.location.search).get('room')?.toUpperCase() || '';
-const INITIAL_SESSION = INITIAL_ROOM ? loadStoredJson(`star-room-${INITIAL_ROOM}`) : null;
-const INITIAL_DRAFT = INITIAL_ROOM ? loadStoredJson(`star-draft-${INITIAL_ROOM}`) : null;
-
-const LEVELS = [
-  ['1', '认识', '彼此知道，私人投入较少'],
-  ['2', '同行', '因共同场景或兴趣相处'],
-  ['3', '稳定', '会主动维持，也能互相支持'],
-  ['4', '亲密', '能够袒露感受并尊重边界'],
-  ['5', '核心', '长期可靠，可以适度托付'],
-];
-
-const DIMENSIONS = ['信任', '互惠', '支持', '边界', '理解', '修复'];
-
-const coreQuestions = [
-  {
-    id: 'trust-secret', dimension: '信任', title: '“你别告诉别人”挑战',
-    self: '{name}半夜发来一句：“这事我只敢告诉你。”第二天有人旁敲侧击，我会？',
-    other: '我半夜对{name}说：“这事我只敢告诉你。”第二天有人旁敲侧击，{name}会？',
-    options: [['直接开启保密模式，有风险也先私下提醒对方', 4], ['装作完全不知道，不让话题继续', 3], ['憋不住时，只找和这件事毫无关系的人匿名聊聊', 2], ['给共同朋友一点“应该不算泄密”的提示', 1], ['先说“你千万别外传”，然后讲了', 0], ['这种剧情还没发生过', null]],
-  },
-  {
-    id: 'trust-cancel', dimension: '信任', title: '放鸽子求生局',
-    self: '离见面只剩两小时，我突然去不了了。面对已经准备出门的{name}，我会？',
-    other: '离见面只剩两小时，{name}突然来不了了。面对已经准备出门的我，{name}会？',
-    options: [['马上说实话、认真道歉，并主动给出新的时间', 4], ['如实说明，等缓过来再约', 3], ['先发一句“临时有事”，晚点再解释', 2], ['编一个听起来比较不讨人嫌的理由', 1], ['假装没看见时间，等对方来问', 0], ['我们还没互相放过鸽子', null]],
-  },
-  {
-    id: 'mutual-contact', dimension: '互惠', title: '聊天框长草以后',
-    self: '我和{name}的聊天框安静了半个月。某天刷到一个对方一定会笑的视频，我会？',
-    other: '我和{name}的聊天框安静了半个月。{name}刷到一个我一定会笑的视频，会？',
-    options: [['立刻甩过来，顺手问一句最近怎么样', 4], ['先收藏，找个不突兀的时候发来', 3], ['等对方先开口，但一开口就能接上', 2], ['想了想还是算了，怕显得突然', 1], ['只有需要帮忙时才会重新出现', 0], ['我们的聊天框从没长过草', null]],
-  },
-  {
-    id: 'mutual-help', dimension: '互惠', title: '“救命，明早要交”',
-    self: '晚上十一点，{name}突然发来“救命”，但我也已经累到只剩3%的电。我会？',
-    other: '晚上十一点，我突然向{name}喊“救命”，但{name}也已经累到只剩3%的电。{name}会？',
-    options: [['先搞清最急的部分，能帮就帮，不能也一起找办法', 4], ['明确告诉对方我还能帮到几点、帮到哪', 3], ['先安慰几句，等明天再看情况', 2], ['嘴上说“马上”，然后越拖越不敢回', 1], ['开启飞行模式，当作没看见', 0], ['还没触发过深夜求救事件', null]],
-  },
-  {
-    id: 'support-fail', dimension: '支持', title: '努力翻车现场',
-    self: '{name}准备很久的事失败了，只发来一句：“算了，当我没说。”我会？',
-    other: '我准备很久的事失败了，只对{name}说：“算了，当我没说。”{name}会？',
-    options: [['先陪着，不急着修理情绪，再问想听安慰还是办法', 4], ['认真听完，过几天还会记得回来问', 3], ['发一大段加油打气，希望对方快点振作', 2], ['立刻复盘：我早就觉得这个地方有问题', 1], ['拿别人的成功作比较，试图“刺激一下”', 0], ['还没一起经历过这种翻车', null]],
-  },
-  {
-    id: 'support-news', dimension: '支持', title: '喜讯广播站',
-    self: '{name}连发八个感叹号，说终于拿到了特别想要的机会。我第一反应会是？',
-    other: '我连发八个感叹号，说终于拿到了特别想要的机会。{name}第一反应会是？',
-    options: [['比本人还激动，追问细节并认真庆祝', 4], ['真心替对方开心，让对方把故事讲完', 3], ['回一句“牛啊”，然后继续忙自己的', 2], ['顺势讲起自己最近更厉害的一件事', 1], ['先提醒别高兴太早，免得之后失望', 0], ['我们还没播报过这种喜讯', null]],
-  },
-  {
-    id: 'boundary-space', dimension: '边界', title: '社交电量只剩1%',
-    self: '{name}说：“我今天电量见底，不想聊天，但不是针对你。”我会？',
-    other: '我对{name}说：“我今天电量见底，不想聊天，但不是针对你。”{name}会？',
-    options: [['回一句“收到，好好充电”，然后真的留出空间', 4], ['确认对方安全后就不再追问', 3], ['心里有点失落，但不会把情绪丢给对方', 2], ['再劝几次，觉得说出来才会好一点', 1], ['开始连环追问：你是不是对我有意见', 0], ['我们还没遇过低电量模式', null]],
-  },
-  {
-    id: 'boundary-no', dimension: '边界', title: '这次真的不行',
-    self: '我很想让{name}陪我去，但{name}只说：“这次真的不行。”我会？',
-    other: '{name}很想让我陪着去，但我只说：“这次真的不行。”{name}会？',
-    options: [['接受这个“不”，不逼对方提交理由证明', 4], ['会失望，但仍然尊重决定', 3], ['问一次是不是有什么顾虑，然后收住', 2], ['再磨几轮：就这一次嘛，真的不行吗', 1], ['冷下来，让对方为拒绝我感到内疚', 0], ['还没有遇到过这种拒绝', null]],
-  },
-  {
-    id: 'understand-mood', dimension: '理解', title: '一句“没事”但不像没事',
-    self: '{name}回我“没事哈哈”，但这个“哈哈”明显和平时不一样。我会？',
-    other: '我回{name}“没事哈哈”，但这个“哈哈”明显和平时不一样。{name}会？',
-    options: [['轻轻点破：“感觉不像没事，想说时我在”', 4], ['先表达关心，再把开口权留给对方', 3], ['注意到了，但会等对方自己说', 2], ['根据蛛丝马迹直接推理并给解决方案', 1], ['认定对方在闹情绪，逼着现在说清楚', 0], ['我分辨不出不同版本的“哈哈”', null]],
-  },
-  {
-    id: 'understand-view', dimension: '理解', title: '谁也说服不了谁',
-    self: '我和{name}聊到一个重要话题，越聊越发现：我们真的站在两边。我会？',
-    other: '我和{name}聊到一个重要话题，越聊越发现：我们真的站在两边。{name}会？',
-    options: [['先弄懂对方为什么这样想，再说自己的不同', 4], ['坦率表达，但允许这局没有赢家', 3], ['赶紧换话题，别让气氛坏掉', 2], ['继续加码论据，直到对方认输', 1], ['从观点上升到“你这个人就是有问题”', 0], ['我们还没聊到过这么分叉的话题', null]],
-  },
-  {
-    id: 'repair-hurt', dimension: '修复', title: '“你那句话有点扎我”',
-    self: '{name}突然认真地说：“你刚才那句话有点扎我。”我会？',
-    other: '我突然认真地对{name}说：“你刚才那句话有点扎我。”{name}会？',
-    options: [['先听清扎在哪里，认真道歉，再商量怎么补回来', 4], ['承认造成了伤害，也解释当时真正想表达什么', 3], ['马上说对不起，希望这页能快点翻过去', 2], ['先躲开，觉得等对方不生气就好了', 1], ['脱口而出：“你是不是太敏感了？”', 0], ['我们还没这样直接说过不舒服', null]],
-  },
-  {
-    id: 'repair-heat', dimension: '修复', title: '争吵CPU过热',
-    self: '我和{name}越说越快，已经开始翻旧账，脑子也快烧了。我会？',
-    other: '我和{name}越说越快，已经开始翻旧账，脑子也快烧了。{name}会？',
-    options: [['喊暂停，并说清楚什么时候回来把这件事讲完', 4], ['主动降速，只谈眼前这一件事', 3], ['突然安静或离开，但不说还会不会回来聊', 2], ['继续输出，非得当场分出输赢', 1], ['说狠话、威胁绝交，或者把聊天发给别人看', 0], ['我们的CPU还没一起过热过', null]],
-  },
-];
-
-const replaceName = (text, name) => text.replaceAll('{name}', name || '对方');
-
-const buildSummary = (answerMap, currentLevel, expectedLevel) => ({
-  currentLevel,
-  expectedLevel,
-  dimensions: DIMENSIONS.map((dimension) => {
-    const related = coreQuestions.filter((question) => question.dimension === dimension);
-    const collect = (perspective) => related
-      .map((question) => answerMap[`${question.id}-${perspective}`])
-      .filter((value) => typeof value === 'number');
-    const average = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-    return { dimension, self: average(collect('self')), other: average(collect('other')) };
-  }),
-});
-
-function ProgressBar({ value, tone = 'cyan' }) {
-  return <div className={`progress-track ${tone}`}><span style={{ width: `${Math.max(4, value)}%` }} /></div>;
+function Avatar({ player, size = 'normal', selected = false, onClick }) {
+  const avatar = AVATARS[player.avatar % AVATARS.length];
+  const body = (
+    <>
+      <span className="avatar-ring" style={{ '--accent': ACCENTS[player.avatar % ACCENTS.length] }}>
+        <img src={avatar} alt={`${player.name}的头像`} />
+        {player.host && <Crown className="host-crown" weight="fill" />}
+        {player.ready && <span className="ready-dot"><Check weight="bold" /></span>}
+      </span>
+      <b>{player.name}</b>
+      {player.score !== undefined && <small>{player.score} 默契值</small>}
+    </>
+  );
+  return onClick ? <button className={`player-avatar ${size} ${selected ? 'selected' : ''}`} onClick={onClick}>{body}</button> : <div className={`player-avatar ${size}`}>{body}</div>;
 }
 
 export function App() {
-  const [screen, setScreen] = useState(INITIAL_SESSION ? (INITIAL_DRAFT?.screen || 'room') : 'lobby');
-  const [myName, setMyName] = useState('');
-  const [otherName, setOtherName] = useState('阿哲');
   const [roomCode, setRoomCode] = useState(INITIAL_ROOM);
-  const [session, setSession] = useState(INITIAL_SESSION);
+  const [session, setSession] = useState(() => INITIAL_ROOM ? loadSession(INITIAL_ROOM) : null);
   const [room, setRoom] = useState(null);
-  const [roomError, setRoomError] = useState('');
-  const [inviteCopied, setInviteCopied] = useState(false);
-  const [customOpen, setCustomOpen] = useState(false);
-  const [customText, setCustomText] = useState('');
-  const [customAnswerText, setCustomAnswerText] = useState('');
-  const websocketRef = useRef(null);
-  const [currentLevel, setCurrentLevel] = useState(INITIAL_DRAFT?.currentLevel || '3');
-  const [expectedLevel, setExpectedLevel] = useState(INITIAL_DRAFT?.expectedLevel || '4');
-  const [questionIndex, setQuestionIndex] = useState(INITIAL_DRAFT?.questionIndex || 0);
-  const [perspective, setPerspective] = useState(INITIAL_DRAFT?.perspective || 'self');
+  const [screen, setScreen] = useState(session ? 'room' : 'home');
+  const [name, setName] = useState('');
+  const [joinCode, setJoinCode] = useState(INITIAL_ROOM);
+  const [avatar, setAvatar] = useState(Math.floor(Math.random() * AVATARS.length));
   const [selected, setSelected] = useState(null);
-  const [answers, setAnswers] = useState(INITIAL_DRAFT?.answers || {});
-  const [infoOpen, setInfoOpen] = useState(false);
-  const questions = coreQuestions;
-  const question = questions[questionIndex];
-  const me = room?.participants.find((participant) => participant.id === session?.participantId);
-  const partner = room?.participants.find((participant) => participant.id !== session?.participantId);
-  const incomingQuestion = room?.customQuestions?.find((item) => item.to === me?.id && !item.answer);
-  const outgoingQuestions = room?.customQuestions?.filter((item) => item.from === me?.id) || [];
-  const lastOutgoing = outgoingQuestions.at(-1);
-  const inviteUrl = roomCode ? `${window.location.origin}${window.location.pathname}?room=${roomCode}` : '';
-
-  useEffect(() => {
-    if (!session || !roomCode) return;
-    localStorage.setItem(`star-room-${roomCode}`, JSON.stringify(session));
-    sessionStorage.setItem(`star-room-${roomCode}`, JSON.stringify(session));
-  }, [roomCode, session]);
-
-  useEffect(() => {
-    if (!session || !roomCode) return;
-    localStorage.setItem(`star-draft-${roomCode}`, JSON.stringify({
-      screen: ['assess', 'levels', 'waiting', 'results'].includes(screen) ? screen : undefined,
-      currentLevel, expectedLevel, questionIndex, perspective, answers,
-    }));
-  }, [answers, currentLevel, expectedLevel, perspective, questionIndex, roomCode, screen, session]);
+  const [chatText, setChatText] = useState('');
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const socketRef = useRef(null);
+  const me = room?.participants.find((item) => item.id === session?.participantId);
+  const inviteUrl = roomCode ? `${location.origin}${location.pathname}?room=${roomCode}` : '';
 
   useEffect(() => {
     if (!session || !roomCode) return undefined;
     let disposed = false;
-    let retryTimer;
+    let retry;
     const connect = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(`${protocol}//${window.location.host}/ws?room=${roomCode}&participant=${session.participantId}&token=${session.token}`);
-      websocketRef.current = socket;
-      socket.onopen = () => setRoomError('');
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${protocol}//${location.host}/ws?room=${roomCode}&participant=${session.participantId}&token=${session.token}`);
+      socketRef.current = socket;
       socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         if (message.type === 'room') setRoom(message.room);
       };
-      socket.onerror = () => setRoomError('实时连接中断，正在尝试恢复');
-      socket.onclose = () => {
-        if (!disposed) retryTimer = window.setTimeout(connect, 1500);
-      };
+      socket.onopen = () => setError('');
+      socket.onerror = () => setError('实时连接正在恢复');
+      socket.onclose = () => { if (!disposed) retry = setTimeout(connect, 1500); };
     };
     connect();
-    return () => {
-      disposed = true;
-      window.clearTimeout(retryTimer);
-      websocketRef.current?.close();
-    };
+    return () => { disposed = true; clearTimeout(retry); socketRef.current?.close(); };
   }, [roomCode, session]);
 
   useEffect(() => {
-    if (!room || !session) return;
-    const current = room.participants.find((participant) => participant.id === session.participantId);
-    const counterpart = room.participants.find((participant) => participant.id !== session.participantId);
-    if (current) setOtherName(current.otherName);
-    if (counterpart) setMyName(counterpart.otherName);
-    if (room.status === 'active' && screen === 'room') setScreen('assess');
-    if (room.revealReady && screen === 'waiting') setScreen('results');
-  }, [room, screen, session]);
+    if (!room) return;
+    if (room.status === 'waiting') setScreen('room');
+    if (room.status === 'playing' || room.status === 'reveal') setScreen('game');
+    if (room.status === 'finished') setScreen('results');
+  }, [room?.status]);
 
-  useEffect(() => {
-    if (!question) return;
-    const key = `${question.id}-${perspective}`;
-    if (!Object.prototype.hasOwnProperty.call(answers, key)) {
-      setSelected(null);
-      return;
-    }
-    const storedIndex = question.options.findIndex(([, score]) => score === answers[key]);
-    setSelected(storedIndex >= 0 ? storedIndex : null);
-  }, [answers, perspective, question]);
+  useEffect(() => { setSelected(null); }, [room?.phase, room?.roundIndex]);
 
-  const completedRounds = useMemo(() => {
-    return questions.filter((q) => answers[`${q.id}-self`] !== undefined && answers[`${q.id}-other`] !== undefined).length;
-  }, [answers, questions]);
-  const myProgress = Math.round((completedRounds / questions.length) * 100);
-  const partnerProgress = partner?.progress ?? 0;
-
-  const createOrJoinRoom = async () => {
-    if (!otherName.trim()) return;
-    setRoomError('');
+  const enterRoom = async (kind) => {
+    if (!name.trim()) return setError('先给自己取个游戏名');
+    const code = joinCode.trim().toUpperCase();
+    if (kind === 'join' && !/^[A-F0-9]{6}$/.test(code)) return setError('房间码是6位字符');
+    setError('');
     try {
-      const endpoint = roomCode ? `/api/rooms/${roomCode}/join` : '/api/rooms';
-      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ otherName, deviceId: DEVICE_ID }) });
+      const url = kind === 'create' ? '/api/game-rooms' : `/api/game-rooms/${code}/join`;
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, avatar, deviceId: DEVICE_ID }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || '暂时无法进入房间');
-      const nextCode = data.room.code;
+      if (!response.ok) throw new Error(data.error || '暂时进不去');
       const nextSession = { participantId: data.participantId, token: data.token };
-      localStorage.setItem(`star-room-${nextCode}`, JSON.stringify(nextSession));
-      sessionStorage.setItem(`star-room-${nextCode}`, JSON.stringify(nextSession));
-      window.history.replaceState({}, '', `${window.location.pathname}?room=${nextCode}`);
-      setRoomCode(nextCode);
-      setSession(nextSession);
-      setRoom(data.room);
-      setScreen('room');
-    } catch (error) {
-      setRoomError(error.message);
-    }
+      localStorage.setItem(`party-room-${data.room.code}`, JSON.stringify(nextSession));
+      history.replaceState({}, '', `${location.pathname}?room=${data.room.code}`);
+      setRoomCode(data.room.code); setSession(nextSession); setRoom(data.room); setScreen('room');
+    } catch (caught) { setError(caught.message); }
   };
 
-  const postAction = async (action) => {
-    if (!session || !roomCode) return false;
-    const response = await fetch(`/api/rooms/${roomCode}/action`, {
+  const act = async (action) => {
+    if (!session) return false;
+    const response = await fetch(`/api/game-rooms/${roomCode}/action`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...action, participantId: session.participantId, token: session.token }),
     });
     const data = await response.json();
-    if (response.ok) setRoom(data.room);
-    else setRoomError(data.error || '操作失败');
+    if (response.ok) setRoom(data.room); else setError(data.error || '操作失败');
     return response.ok;
   };
 
-  const confirmRoom = () => postAction({ type: 'ready' });
-
+  const lockAnswer = async () => {
+    if (selected === null || room.viewerSubmitted) return;
+    const type = room.phase === 'guess' ? 'guess' : 'answer';
+    if (await act({ type, value: selected })) setSelected(null);
+  };
+  const sendChat = async (text = chatText) => {
+    if (!text.trim()) return;
+    if (await act({ type: 'chat', text })) setChatText('');
+  };
   const copyInvite = async () => {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(inviteUrl);
-    } else {
-      const field = document.createElement('textarea');
-      field.value = inviteUrl;
-      field.style.position = 'fixed';
-      field.style.opacity = '0';
-      document.body.appendChild(field);
-      field.select();
-      document.execCommand('copy');
-      field.remove();
-    }
-    setInviteCopied(true);
-    window.setTimeout(() => setInviteCopied(false), 1600);
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true); setTimeout(() => setCopied(false), 1400);
   };
 
-  const sendCustomQuestion = async () => {
-    if (!customText.trim()) return;
-    const sent = await postAction({ type: 'custom_question', text: customText });
-    if (sent) {
-      setCustomText('');
-      setCustomOpen(false);
-    }
-  };
-
-  const answerCustomQuestion = async (choice) => {
-    if (!incomingQuestion) return;
-    if (choice === 'answer' && !customAnswerText.trim()) return;
-    const answered = await postAction({ type: 'custom_answer', questionId: incomingQuestion.id, choice, text: customAnswerText });
-    if (answered) {
-      setCustomAnswerText('');
-      setScreen('assess');
-    }
-  };
-
-  const submitReflection = () => {
-    const summary = buildSummary(answers, currentLevel, expectedLevel);
-    postAction({ type: 'submit', consent: true, summary });
-    setScreen('waiting');
-  };
-
-  const confirmAnswer = () => {
-    if (selected === null) return;
-    const key = `${question.id}-${perspective}`;
-    const [, selectedScore] = question.options[selected];
-    const nextAnswers = { ...answers, [key]: selectedScore };
-    setAnswers(nextAnswers);
-    setSelected(null);
-    if (perspective === 'self') {
-      setPerspective('other');
-      return;
-    }
-    setPerspective('self');
-    const nextCompleted = questionIndex + 1;
-    postAction({ type: 'progress', progress: Math.round((nextCompleted / questions.length) * 100) });
-    if (questionIndex < questions.length - 1) {
-      setQuestionIndex(questionIndex + 1);
-    } else {
-      setScreen('levels');
-    }
-  };
-
-  const goBack = () => {
-    if (perspective === 'other') {
-      setPerspective('self');
-      return;
-    }
-    if (questionIndex > 0) {
-      setQuestionIndex(questionIndex - 1);
-      setPerspective('other');
-      return;
-    }
-    setScreen('room');
-  };
-
-  const reopenAnswers = async () => {
-    await postAction({ type: 'reopen', progress: Math.min(99, myProgress) });
-    setQuestionIndex(coreQuestions.length - 1);
-    setPerspective('other');
-    setScreen('assess');
-  };
-
-  const dimensionScores = useMemo(() => DIMENSIONS.map((dimension) => {
-    const related = coreQuestions.filter((q) => q.dimension === dimension);
-    const own = related.map((q) => answers[`${q.id}-self`]).filter((v) => typeof v === 'number');
-    const other = related.map((q) => answers[`${q.id}-other`]).filter((v) => typeof v === 'number');
-    const avg = (values) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : 2.5;
-    return { dimension, own: avg(own), other: avg(other) };
-  }), [answers]);
-
-  const partnerSummary = partner?.summary;
-  const sharedLevel = useMemo(() => {
-    const myExperience = dimensionScores.map((item) => item.other).filter((value) => typeof value === 'number');
-    const partnerExperience = partnerSummary?.dimensions?.map((item) => item.other).filter((value) => typeof value === 'number') || [];
-    const values = [...myExperience, ...partnerExperience];
-    if (!values.length) return 3;
-    return Math.min(5, Math.max(1, 1 + values.reduce((sum, value) => sum + value, 0) / values.length));
-  }, [dimensionScores, partnerSummary]);
-  const sharedTierIndex = Math.min(4, Math.max(0, Math.floor(sharedLevel) - 1));
-  const sharedTier = LEVELS[sharedTierIndex];
-  const nextTier = LEVELS[Math.min(4, sharedTierIndex + 1)];
+  const sortedPlayers = useMemo(() => [...(room?.participants || [])].sort((a, b) => b.score - a.score), [room?.participants]);
+  const question = room?.currentQuestion;
+  const phaseLabel = room?.phase === 'guess' ? '猜猜多数人选了什么' : room?.phase === 'reveal' ? '答案揭晓' : question?.type === 'point' ? '点一个最符合的人' : '先选你自己的答案';
+  const choices = question?.type === 'point' ? room?.participants || [] : question?.options?.map((label, index) => ({ id: index, label })) || [];
 
   return (
-    <main className="app-shell">
-      <div className="app-frame">
-        <header className="topbar">
-          {screen !== 'lobby' ? <button className="icon-button" onClick={() => setScreen('lobby')} aria-label="返回大厅"><ArrowLeft /></button> : <span />}
-          <div className="brand"><Sparkle weight="fill" /><span>双人星图</span></div>
-          <button className="icon-button" onClick={() => setInfoOpen(true)} aria-label="查看说明"><Info /></button>
-        </header>
-
-        {screen === 'lobby' && (
-          <section className="screen lobby-screen">
-            <div className="eyebrow"><LockKey /> 仅双方可见</div>
-            <div className="hero-copy">
-              <h1>{roomCode ? '加入这次探索' : '邀请一个人'}<br />共同绘制星图</h1>
-              <p>{roomCode ? `房间 ${roomCode} 正在等你。` : '创建后会得到一条邀请链接，可以直接发到微信。'}双方分别回答，提交前不显示彼此答案。</p>
-            </div>
-            <div className="orbit-stage" aria-hidden="true">
-              <Planet className="planet cyan" weight="duotone" />
-              <span className="orbit-line" />
-              <Planet className="planet violet" weight="duotone" />
-            </div>
-            <div className="name-panel">
-              <div className="name-step active"><span>1</span><div><b>你怎么称呼对方？</b><small>这个名字会进入每一道题</small></div></div>
-              <label>我眼中的对方<input value={otherName} onChange={(e) => setOtherName(e.target.value)} maxLength={12} placeholder="例如：阿哲" /></label>
-              <div className="name-step"><span>2</span><div><b>{roomCode ? '确认后进入双人房间' : '把邀请链接发给对方'}</b><small>对方会在自己的设备填写对你的称呼</small></div></div>
-            </div>
-            {roomError && <p className="error-message">{roomError}</p>}
-            <button className="primary-button" onClick={createOrJoinRoom} disabled={!otherName.trim()}><UsersThree weight="fill" /> {roomCode ? '加入双人房间' : '创建双人房间'}</button>
-            <p className="fine-print">无需注册 · 不公开排名 · 随时可以退出</p>
-          </section>
-        )}
-
-        {screen === 'room' && (
-          <section className="screen room-screen">
-            <div className="eyebrow"><LinkSimple /> 房间 {roomCode}</div>
-            <div className="hero-copy room-copy">
-              <h1>{partner ? '两颗星已经相遇' : `正在等待${otherName}`}</h1>
-              <p>{partner ? '双方都确认称呼后，探索会同时开始。' : '把链接发给对方；微信里直接点开就能加入。'}</p>
-            </div>
-            <div className="room-planets">
-              <div><Planet className="planet cyan" weight="duotone" /><b>{myName || '等待对方命名'}</b><span>{me?.ready ? '已确认' : '等待确认'}</span></div>
-              <span className={partner ? 'connection active' : 'connection'} />
-              <div><Planet className="planet violet" weight="duotone" /><b>{otherName}</b><span>{partner ? (partner.ready ? '已确认' : '已加入') : '等待加入'}</span></div>
-            </div>
-            {!partner && <div className="invite-panel"><small>微信邀请链接</small><p>{inviteUrl}</p><button className="secondary-button" onClick={copyInvite}><Copy /> {inviteCopied ? '已复制' : '复制邀请链接'}</button></div>}
-            {partner && <div className="room-ready-note"><LockKey /> 你填写的是“{otherName}”，对方填写的是“{myName}”</div>}
-            {roomError && <p className="error-message">{roomError}</p>}
-            <button className="primary-button" onClick={confirmRoom} disabled={!partner || me?.ready}><Check weight="bold" /> {me?.ready ? '等待对方确认' : '确认称呼，准备开始'}</button>
-            <p className="fine-print">只同步状态和进度 · 答案提交前仅自己可见</p>
-          </section>
-        )}
-
-        {screen === 'levels' && (
-          <section className="screen levels-screen">
-            <div className="room-status"><Check weight="bold" /> 12个情境已完成 · 最后再看等级</div>
-            <div className="chapter-heading"><span>13</span><div><h2>此刻，我觉得我们在哪一层？</h2><p>现在再选，答案不会影响前面的情境题</p></div></div>
-            <div className="level-list">
-              {LEVELS.map(([level, title, desc]) => <button key={level} className={currentLevel === level ? 'selected' : ''} onClick={() => setCurrentLevel(level)}><b>Lv.{level} {title}</b><small>{desc}</small>{currentLevel === level && <Check weight="bold" />}</button>)}
-            </div>
-            <div className="chapter-heading compact"><span>愿望</span><div><h2>我希望以后走到哪里？</h2><p>这是我的愿望，不是给{otherName}布置的任务</p></div></div>
-            <div className="expect-row">
-              {LEVELS.map(([level]) => <button key={level} className={expectedLevel === level ? 'selected' : ''} onClick={() => setExpectedLevel(level)}>Lv.{level}</button>)}
-            </div>
-            <div className="answer-actions">
-              <button className="secondary-button" onClick={() => { setQuestionIndex(coreQuestions.length - 1); setPerspective('other'); setScreen('assess'); }}><ArrowLeft weight="bold" /> 返回修改</button>
-              <button className="primary-button" onClick={submitReflection}><RocketLaunch weight="fill" /> 锁定感受，等待揭晓</button>
+    <main className="party-app">
+      <div className="stage-bg" />
+      <div className="party-frame">
+        {screen === 'home' && (
+          <section className="home-screen">
+            <div className="show-badge"><UsersThree weight="fill" /> 3–8人实时开玩</div>
+            <button className="rules-button" onClick={() => setRulesOpen(true)}><Info /> 规则</button>
+            <div className="logo-lockup"><Sparkle weight="fill" /><h1>默契大挑战</h1><p>不准开麦，只许偷偷选</p></div>
+            <div className="home-cast">{AVATARS.map((src, index) => <img key={src} src={src} alt="玩家示例头像" style={{ '--i': index }} />)}</div>
+            <div className="entry-panel">
+              <label>你的游戏名<input value={name} onChange={(event) => setName(event.target.value)} maxLength={8} placeholder="例如：桃桃乌龙" /></label>
+              <div className="avatar-picker">{AVATARS.map((src, index) => <button key={src} className={avatar === index ? 'selected' : ''} onClick={() => setAvatar(index)}><img src={src} alt={`头像${index + 1}`} /></button>)}</div>
+              <button className="primary-cta" onClick={() => enterRoom('create')}><Play weight="fill" /> 创建房间</button>
+              <div className="join-row"><input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} maxLength={6} placeholder="输入6位房间码" /><button onClick={() => enterRoom('join')}><ArrowRight weight="bold" /></button></div>
+              {error && <p className="error-text">{error}</p>}
+              <small className="trust-line"><LockKey /> 不用登录 · 微信直接玩 · 全程打字</small>
             </div>
           </section>
         )}
 
-        {screen === 'assess' && question && (
-          <section className="screen assess-screen">
-            <div className="player-progress">
-              <div><div className="player-title"><Planet weight="duotone" /> <b>{myName}</b><span>{completedRounds}/{questions.length}</span></div><ProgressBar value={myProgress} /></div>
-              <div><div className="player-title partner"><Planet weight="duotone" /> <b>{otherName}</b><span>{Math.round(partnerProgress * questions.length / 100)}/{questions.length}</span></div><ProgressBar value={partnerProgress} tone="violet" /></div>
+        {screen === 'room' && room && (
+          <section className="room-screen">
+            <div className="top-showbar"><span><UsersThree weight="fill" /> {room.participants.length}/8</span><b>默契大挑战</b><button onClick={() => setRulesOpen(true)}><Info /></button></div>
+            <div className="room-code"><small>房间码</small><strong>{room.code}</strong><button onClick={copyInvite}><Copy /> {copied ? '已复制' : '复制邀请'}</button></div>
+            <h2>选手正在入场</h2><p>至少3人，全员准备后房主开局</p>
+            <div className="lobby-cast">{room.participants.map((player) => <Avatar key={player.id} player={player} />)}{Array.from({ length: Math.max(0, 3 - room.participants.length) }).map((_, index) => <div className="empty-seat" key={index}><UsersThree /><span>等待加入</span></div>)}</div>
+            <div className="room-actions">
+              <button className="secondary-cta" onClick={copyInvite}><ShareNetwork /> 发到微信群</button>
+              {!me?.ready && <button className="primary-cta" onClick={() => act({ type: 'ready' })}><Check weight="bold" /> 我准备好了</button>}
+              {me?.ready && !me?.host && <div className="waiting-pill"><Check /> 已准备，等房主开场</div>}
+              {me?.host && <button className="primary-cta" disabled={room.participants.length < 3 || !room.participants.every((p) => p.ready)} onClick={() => act({ type: 'start' })}><GameController weight="fill" /> 开始10轮挑战</button>}
             </div>
-            <p className="privacy-note"><LockKey /> 只同步进度，不显示彼此答案</p>
-            <div className="side-quest-toolbar">
-              {incomingQuestion ? <button className="incoming-quest" onClick={() => setScreen('side')}><Sparkle weight="fill" /><span><b>{otherName}投来一道支线题</b><small>完成当前题后也可以回答</small></span></button> : <span>{lastOutgoing ? (lastOutgoing.answer ? `${otherName}已回应你的支线题` : `支线题已投递给${otherName}`) : '可以随时投递一道自己的问题'}</span>}
-              <button className="add-question-button" onClick={() => setCustomOpen(true)} disabled={outgoingQuestions.length >= 3}><Plus weight="bold" /> 加一题</button>
+            {error && <p className="error-text">{error}</p>}
+          </section>
+        )}
+
+        {screen === 'game' && room && question && (
+          <section className="game-screen">
+            <div className="game-brand"><Sparkle weight="fill" /><b>默契大挑战</b><button onClick={() => setRulesOpen(true)}>规则</button></div>
+            <div className="score-strip">{room.participants.map((player) => <Avatar key={player.id} player={player} size="mini" />)}</div>
+            <div className="round-chip">第 <b>{room.roundIndex + 1}</b> / {room.totalRounds} 题</div>
+            <div className="question-board"><small>{phaseLabel}</small><h1>{question.prompt}</h1><span>{room.answerCount}人已作答</span></div>
+            <div className={`choice-grid ${question.type === 'point' ? 'people' : ''}`}>
+              {choices.map((choice) => question.type === 'point' ? (
+                <Avatar key={choice.id} player={choice} selected={selected === choice.id} onClick={() => !room.viewerSubmitted && setSelected(choice.id)} />
+              ) : (
+                <button key={choice.id} className={selected === choice.id ? 'selected' : ''} disabled={room.viewerSubmitted || room.phase === 'reveal'} onClick={() => setSelected(choice.id)}><span>{String.fromCharCode(65 + choice.id)}</span>{choice.label}</button>
+              ))}
             </div>
-            <div className="stage-strip">
-              <span className="active"><Sparkle /> 情境闯关</span><span>最后评级</span><span>共同星图</span>
-            </div>
-            <div className="question-meta"><span>第 {questionIndex + 1} 关 · {question.dimension}</span><b>{question.title}</b></div>
-            <div className="perspective-switch" role="tablist">
-              <button className={perspective === 'self' ? 'active' : ''} disabled={perspective !== 'self'}>我的自评</button>
-              <button className={perspective === 'other' ? 'active' : ''} disabled={perspective !== 'other'}>我眼中的{otherName}</button>
-            </div>
-            <h2 className="question-copy">{replaceName(question[perspective], otherName)}</h2>
-            <div className="option-list">
-              {question.options.map(([label, score], index) => <button key={label} className={selected === index ? 'selected' : ''} onClick={() => setSelected(index)}><span className="choice-dot">{selected === index && <Check weight="bold" />}</span><span>{replaceName(label, otherName)}</span>{score === null && <small>不计分</small>}</button>)}
-            </div>
-            <div className="answer-actions">
-              <button className="secondary-button" onClick={goBack}><ArrowLeft weight="bold" /> 上一步</button>
-              <button className="primary-button sticky" onClick={confirmAnswer} disabled={selected === null}><RocketLaunch weight="fill" /> {perspective === 'self' ? `接着回答${otherName}` : '确认这一关'}</button>
+
+            {room.phase !== 'reveal' ? <button className="lock-button" disabled={selected === null || room.viewerSubmitted} onClick={lockAnswer}>{room.viewerSubmitted ? <><Check /> 已锁定，等大家</> : <><LockKey weight="fill" /> 锁定答案</>}</button> : (
+              <div className="reveal-panel"><Sparkle weight="fill" /><b>{room.reveal.title}</b><p>{room.reveal.subtitle}</p>{me?.host ? <button onClick={() => act({ type: 'next' })}>{room.roundIndex + 1 === room.totalRounds ? '查看最终排行' : '下一题'} <ArrowRight /></button> : <span>等房主进入下一题</span>}</div>
+            )}
+
+            <div className="chat-panel">
+              <div className="quick-reactions">{REACTIONS.map((reaction) => <button key={reaction.text} onClick={() => sendChat(reaction.text)} aria-label={`发送${reaction.text}`}><img src={reaction.src} alt={reaction.text} /></button>)}</div>
+              <div className="chat-feed">{room.chat.slice(-4).map((item) => <p key={item.id}><b>{item.name}</b><span>{item.text}</span></p>)}</div>
+              <div className="chat-compose"><input value={chatText} onChange={(event) => setChatText(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && sendChat()} maxLength={60} placeholder="说点什么…" /><button onClick={() => sendChat()}><PaperPlaneTilt weight="fill" /> 发送</button></div>
             </div>
           </section>
         )}
 
-        {screen === 'side' && incomingQuestion && (
-          <section className="screen side-question-screen">
-            <div className="eyebrow"><Sparkle weight="fill" /> {otherName}投递的支线题</div>
-            <div className="side-question-planet"><PaperPlaneTilt weight="duotone" /></div>
-            <p className="side-label">这道题不参与六维评分</p>
-            <h1>{incomingQuestion.text}</h1>
-            <label className="answer-label">我想这样回答<textarea value={customAnswerText} onChange={(event) => setCustomAnswerText(event.target.value)} maxLength={200} placeholder={`写给${otherName}，最多200字`} /></label>
-            <button className="primary-button" onClick={() => answerCustomQuestion('answer')} disabled={!customAnswerText.trim()}><PaperPlaneTilt weight="fill" /> 发出回答</button>
-            <button className="secondary-button" onClick={() => answerCustomQuestion('later')}>完成后再聊</button>
-            <button className="text-button" onClick={() => answerCustomQuestion('skip')}>暂时不回答</button>
-            <p className="fine-print">跳过不会扣分，也不会影响星图结果</p>
+        {screen === 'results' && room && (
+          <section className="results-screen">
+            <Sparkle className="result-spark" weight="fill" /><small>本局挑战完成</small><h1>默契王者诞生</h1>
+            <div className="podium">{sortedPlayers.map((player, index) => <div className={`rank-row rank-${index + 1}`} key={player.id}><b>{index + 1}</b><Avatar player={player} size="mini" /><strong>{player.score} 分</strong><span>{index === 0 ? '人群读心王' : index === 1 ? '默契雷达' : index === 2 ? '稳定发挥' : '气氛担当'}</span></div>)}</div>
+            <button className="primary-cta" onClick={() => { history.replaceState({}, '', location.pathname); setRoom(null); setSession(null); setRoomCode(''); setScreen('home'); }}><GameController /> 再开一局</button>
           </section>
         )}
 
-        {screen === 'waiting' && (
-          <section className="screen waiting-screen">
-            <CircleNotch className="waiting-planet" weight="duotone" />
-            <div className="eyebrow"><Sparkle /> 你的核心星图已完成</div>
-            <h1>在轨道上等一等{otherName}</h1>
-            <p>{otherName}完成后会自动解锁。这里不会催促，也不会提前显示{otherName}的答案。</p>
-            <div className="waiting-progress"><b>{myName}</b><ProgressBar value={100} /><span>已完成</span></div>
-            <div className="waiting-progress"><b>{otherName}</b><ProgressBar value={partnerProgress} tone="violet" /><span>{Math.round(partnerProgress * 12 / 100)} / 12</span></div>
-            {incomingQuestion && <button className="primary-button" onClick={() => setScreen('side')}><Sparkle weight="fill" /> 回答{otherName}的支线题</button>}
-            <button className="secondary-button" onClick={reopenAnswers}><ArrowLeft weight="bold" /> 返回修改我的答案</button>
-            <button className="text-button" onClick={() => setScreen('lobby')}>退出房间</button>
-          </section>
-        )}
-
-        {screen === 'results' && (
-          <section className="screen results-screen">
-            <div className="eyebrow"><Sparkle weight="fill" /> 双方星图已解锁</div>
-            <h1>你们眼中的这段友谊</h1>
-            <p className="result-intro">差异不是扣分，而是值得交换的具体感受。</p>
-            <div className="shared-level-card">
-              <small>共同关系进度</small>
-              <b>Lv.{sharedLevel.toFixed(1)}</b>
-              <span>{sharedTier[1]}{sharedTierIndex < 4 ? ` → ${nextTier[1]}` : ''}</span>
-              <p>根据双方六维行为体验换算，仅表示游戏进度</p>
-            </div>
-            <div className="level-compare">
-              <div><small>我认为目前</small><b>Lv.{currentLevel}.0</b><span>{LEVELS.find((l) => l[0] === currentLevel)?.[1]}</span></div>
-              <div><small>我期待</small><b>Lv.{expectedLevel}.0</b><span>{LEVELS.find((l) => l[0] === expectedLevel)?.[1]}</span></div>
-              <div><small>{otherName}认为目前</small><b>{partnerSummary?.currentLevel ? `Lv.${partnerSummary.currentLevel}.0` : '—'}</b><span>{LEVELS.find((level) => level[0] === partnerSummary?.currentLevel)?.[1] || '等待'}</span></div>
-            </div>
-            <div className="score-section">
-              <div className="section-title"><h2>六维感受</h2><span>12关共同星图</span></div>
-              {dimensionScores.map(({ dimension, own }) => {
-                const received = partnerSummary?.dimensions?.find((item) => item.dimension === dimension)?.other;
-                return <div className="score-row" key={dimension}><b>{dimension}</b><div><small>我对自己</small><ProgressBar value={own / 4 * 100} /></div><div><small>{otherName}眼中的我</small><ProgressBar value={(received ?? 2.5) / 4 * 100} tone="violet" /></div></div>;
-              })}
-            </div>
-            <div className="insight"><Sparkle weight="fill" /><div><b>最值得聊聊：边界</b><p>你们对“留出空间”的感受不太一样，可以交换一个具体例子。</p></div></div>
-            <div className="completion-note"><Check weight="bold" /> 共同星图已生成</div>
-            <button className="secondary-button" onClick={() => setScreen('lobby')}>重新开始</button>
-          </section>
-        )}
-
-        {infoOpen && <div className="modal-backdrop" onClick={() => setInfoOpen(false)}><div className="modal" onClick={(e) => e.stopPropagation()}><h2>这不是心理诊断</h2><p>双人星图用于整理感受和开启沟通。结果不判断谁好谁坏，也不会公开排名。</p><button className="primary-button" onClick={() => setInfoOpen(false)}>我知道了</button></div></div>}
-        {customOpen && <div className="modal-backdrop" onClick={() => setCustomOpen(false)}><div className="modal" onClick={(event) => event.stopPropagation()}><div className="eyebrow"><Sparkle weight="fill" /> 星际加问</div><h2>给{otherName}投递一道支线题</h2><p>它不会计入心理学评分。{otherName}可以回答、稍后聊或跳过。</p><textarea value={customText} onChange={(event) => setCustomText(event.target.value)} maxLength={80} placeholder={`例如：你最希望我改掉的一个小习惯是什么？`} /><div className="character-count">{customText.length}/80 · 还可发送{Math.max(0, 3 - outgoingQuestions.length)}题</div><button className="primary-button" onClick={sendCustomQuestion} disabled={!customText.trim()}><PaperPlaneTilt weight="fill" /> 实时投递给{otherName}</button></div></div>}
+        {rulesOpen && <div className="modal-backdrop" onClick={() => setRulesOpen(false)}><div className="rules-modal" onClick={(event) => event.stopPropagation()}><h2>怎么玩</h2><p><b>1.</b> 秘密选择自己的答案，或者点出最符合的人。</p><p><b>2.</b> 猜多数人会怎么选，猜中默契值 +1。</p><p><b>3.</b> 全程只打字和点选，不需要开麦。</p><button className="primary-cta" onClick={() => setRulesOpen(false)}>懂了，开玩</button></div></div>}
       </div>
     </main>
   );
