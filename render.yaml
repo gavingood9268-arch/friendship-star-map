@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: friendship-star-map
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
+    startCommand: node server.mjs
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
