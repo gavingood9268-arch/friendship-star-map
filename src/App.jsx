@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight, Check, Copy, Crown, GameController, Info, LockKey,
+  ArrowRight, Camera, Check, Copy, Crown, GameController, Info, LockKey,
   PaperPlaneTilt, Play, Plus, ShareNetwork, SignOut, Sparkle, Trash, UsersThree,
 } from '@phosphor-icons/react';
 
@@ -28,7 +28,7 @@ const loadSession = (code) => {
 };
 
 function Avatar({ player, size = 'normal', selected = false, onClick }) {
-  const avatar = AVATARS[player.avatar % AVATARS.length];
+  const avatar = player.avatarUrl || AVATARS[player.avatar % AVATARS.length];
   const body = (
     <>
       <span className="avatar-ring" style={{ '--accent': ACCENTS[player.avatar % ACCENTS.length] }}>
@@ -51,6 +51,7 @@ export function App() {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState(INITIAL_ROOM);
   const [avatar, setAvatar] = useState(Math.floor(Math.random() * AVATARS.length));
+  const [customAvatar, setCustomAvatar] = useState('');
   const [selected, setSelected] = useState(null);
   const [chatText, setChatText] = useState('');
   const [customQuestion, setCustomQuestion] = useState('');
@@ -58,6 +59,7 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [connection, setConnection] = useState('idle');
   const socketRef = useRef(null);
   const me = room?.participants.find((item) => item.id === session?.participantId);
@@ -117,7 +119,7 @@ export function App() {
     setError('');
     try {
       const url = kind === 'create' ? '/api/game-rooms' : `/api/game-rooms/${code}/join`;
-      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, avatar, deviceId: DEVICE_ID }) });
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, avatar, customAvatar, deviceId: DEVICE_ID }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || '暂时进不去');
       const nextSession = { participantId: data.participantId, token: data.token };
@@ -172,6 +174,41 @@ export function App() {
   const addCustomQuestion = async () => {
     if (await act({ type: 'add-question', prompt: customQuestion })) { setCustomQuestion(''); setQuestionModalOpen(false); }
   };
+  const compressAvatar = (file) => new Promise((resolve, reject) => {
+    if (!file?.type.startsWith('image/')) return reject(new Error('请选择图片文件'));
+    if (file.size > 12 * 1024 * 1024) return reject(new Error('原图不能超过12MB'));
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const context = canvas.getContext('2d');
+      const scale = Math.max(size / image.naturalWidth, size / image.naturalHeight);
+      const width = image.naturalWidth * scale; const height = image.naturalHeight * scale;
+      context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', .78));
+    };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+    image.src = url;
+  });
+  const chooseCustomAvatar = async (event, updateRoom = false) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const dataUrl = await compressAvatar(file);
+      if (updateRoom) {
+        if (await act({ type: 'avatar', customAvatar: dataUrl })) setAvatarModalOpen(false);
+      } else setCustomAvatar(dataUrl);
+    } catch (caught) { setError(caught.message); }
+  };
+  const choosePresetAvatar = async (index) => {
+    if (room) {
+      if (await act({ type: 'avatar', avatar: index })) setAvatarModalOpen(false);
+    } else { setAvatar(index); setCustomAvatar(''); }
+  };
 
   const sortedPlayers = useMemo(() => [...(room?.participants || [])].sort((a, b) => b.score - a.score), [room?.participants]);
   const question = room?.currentQuestion;
@@ -190,7 +227,7 @@ export function App() {
             <div className="home-cast">{AVATARS.map((src, index) => <img key={src} src={src} alt="玩家示例头像" style={{ '--i': index }} />)}</div>
             <div className="entry-panel">
               <label>你的游戏名<input value={name} onChange={(event) => setName(event.target.value)} maxLength={8} placeholder="例如：桃桃乌龙" /></label>
-              <div className="avatar-picker">{AVATARS.map((src, index) => <button key={src} className={avatar === index ? 'selected' : ''} onClick={() => setAvatar(index)}><img src={src} alt={`头像${index + 1}`} /></button>)}</div>
+              <div className="avatar-picker">{AVATARS.map((src, index) => <button key={src} className={!customAvatar && avatar === index ? 'selected' : ''} onClick={() => choosePresetAvatar(index)}><img src={src} alt={`头像${index + 1}`} /></button>)}<label className={`upload-avatar ${customAvatar ? 'selected' : ''}`}><input type="file" accept="image/*" onChange={(event) => chooseCustomAvatar(event)} />{customAvatar ? <img src={customAvatar} alt="自定义头像" /> : <><Camera weight="fill" /><span>相册</span></>}</label></div>
               <button className="primary-cta" onClick={() => enterRoom('create')}><Play weight="fill" /> 创建房间</button>
               <div className="join-row"><input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} maxLength={6} placeholder="输入6位房间码" /><button onClick={() => enterRoom('join')}><ArrowRight weight="bold" /></button></div>
               {error && <p className="error-text">{error}</p>}
@@ -204,7 +241,7 @@ export function App() {
             <div className="top-showbar"><span><i className={`connection-dot ${connection}`} /> {room.participants.length}/8</span><b>默契大挑战</b><button onClick={() => setRulesOpen(true)}><Info /></button></div>
             <div className="room-code"><small>房间码</small><strong>{room.code}</strong><button onClick={copyInvite}><Copy /> {copied ? '已复制' : '复制邀请'}</button></div>
             <h2>选手正在入场</h2><p>至少3人，全员准备后房主开局</p>
-            <div className="lobby-cast">{room.participants.map((player) => <div className="lobby-player" key={player.id}><Avatar player={player} /><span className={player.online ? 'online' : 'offline'}>{player.online ? '在线' : '暂时离线'}</span>{me?.host && !player.host && !player.online && <button className="remove-player" aria-label={`移除${player.name}`} onClick={() => act({ type: 'remove', targetId: player.id })}><Trash /></button>}</div>)}{Array.from({ length: Math.max(0, 3 - room.participants.length) }).map((_, index) => <div className="empty-seat" key={index}><UsersThree /><span>等待加入</span></div>)}</div>
+            <div className="lobby-cast">{room.participants.map((player) => <div className="lobby-player" key={player.id}><Avatar player={player} /><span className={player.online ? 'online' : 'offline'}>{player.online ? '在线' : '暂时离线'}</span>{player.id === me?.id && <button className="change-avatar" onClick={() => setAvatarModalOpen(true)}><Camera /> 换头像</button>}{me?.host && !player.host && !player.online && <button className="remove-player" aria-label={`移除${player.name}`} onClick={() => act({ type: 'remove', targetId: player.id })}><Trash /></button>}</div>)}{Array.from({ length: Math.max(0, 3 - room.participants.length) }).map((_, index) => <div className="empty-seat" key={index}><UsersThree /><span>等待加入</span></div>)}</div>
             {me?.host && <div className="custom-question-box"><div><b><Plus weight="bold" /> 房主加题</b><span>{room.customQuestionCount}/5 · 中途插入</span></div><div className="custom-question-row"><input value={customQuestion} onChange={(event) => setCustomQuestion(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && addCustomQuestion()} maxLength={60} placeholder="例如：谁最可能突然消失去旅行？" /><button disabled={customQuestion.trim().length < 4 || room.customQuestionCount >= 5} onClick={addCustomQuestion}>加入</button></div></div>}
             <div className="room-actions">
               <button className="secondary-cta" onClick={shareInvite}><ShareNetwork /> 发到微信群</button>
@@ -221,7 +258,7 @@ export function App() {
             <div className="game-brand"><Sparkle weight="fill" /><b>默契大挑战</b><div>{me?.host && room.customQuestionCount < 5 && <button onClick={() => setQuestionModalOpen(true)}>加题</button>}<button onClick={() => setRulesOpen(true)}>规则</button></div></div>
             <div className="score-strip">{room.participants.map((player) => <Avatar key={player.id} player={player} size="mini" />)}</div>
             <div className="round-chip">第 <b>{room.roundIndex + 1}</b> / {room.totalRounds} 题</div>
-            <div className="question-board"><small>{phaseLabel}</small><h1>{question.prompt}</h1><span>{room.answerCount}人已作答</span></div>
+            <div className="question-board"><small>{question.category} · {phaseLabel}</small><h1>{question.prompt}</h1><span>{room.answerCount}人已作答</span></div>
             <div className={`choice-grid ${question.type === 'point' ? 'people' : ''}`}>
               {choices.map((choice) => question.type === 'point' ? (
                 <Avatar key={choice.id} player={choice} selected={selected === choice.id} onClick={() => !room.viewerSubmitted && setSelected(choice.id)} />
@@ -252,6 +289,7 @@ export function App() {
 
         {rulesOpen && <div className="modal-backdrop" onClick={() => setRulesOpen(false)}><div className="rules-modal" onClick={(event) => event.stopPropagation()}><h2>怎么玩</h2><p><b>1.</b> 秘密选择自己的答案，或者点出最符合的人。</p><p><b>2.</b> 猜多数人会怎么选，猜中默契值 +1。</p><p><b>3.</b> 全程只打字和点选，不需要开麦。</p><button className="primary-cta" onClick={() => setRulesOpen(false)}>懂了，开玩</button></div></div>}
         {questionModalOpen && <div className="modal-backdrop" onClick={() => setQuestionModalOpen(false)}><div className="rules-modal question-modal" onClick={(event) => event.stopPropagation()}><h2>临时加一题</h2><p>这道题会排在当前题之后，所有人都会实时收到。</p><div className="custom-question-row"><input autoFocus value={customQuestion} onChange={(event) => setCustomQuestion(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && addCustomQuestion()} maxLength={60} placeholder="谁最可能……？" /><button disabled={customQuestion.trim().length < 4} onClick={addCustomQuestion}>加入</button></div></div></div>}
+        {avatarModalOpen && <div className="modal-backdrop" onClick={() => setAvatarModalOpen(false)}><div className="rules-modal avatar-modal" onClick={(event) => event.stopPropagation()}><h2>换一个头像</h2><p>可以选节目头像，也可以从手机相册上传。</p><div className="avatar-picker modal-picker">{AVATARS.map((src, index) => <button key={src} onClick={() => choosePresetAvatar(index)}><img src={src} alt={`头像${index + 1}`} /></button>)}<label className="upload-avatar"><input type="file" accept="image/*" onChange={(event) => chooseCustomAvatar(event, true)} /><Camera weight="fill" /><span>相册</span></label></div></div></div>}
       </div>
     </main>
   );

@@ -14,6 +14,8 @@ When implementing from a selected generated mock, treat that image as the source
 - Never reveal individual answers before the round reaches its reveal phase.
 - Keep a visible shared answer count and compact player score strip throughout the game.
 - The host may add up to five live custom “谁最可能” questions; when added during play, the next custom question appears immediately after the current round.
+- The built-in bank contains 60 questions across six categories. A standard room draws 10 unique questions with five point questions, five majority-choice questions, and broad category coverage.
+- Players may upload any personal avatar from their device and change it again in the waiting room. Compress and center-crop uploads client-side before sending; do not broadcast raw image data in room state.
 - Readiness is reversible. Waiting-room players have online/offline presence, may leave explicitly, and host ownership transfers when the host leaves.
 - Preserve device-based session recovery so refresh or reopening a valid invite does not consume another seat.
 - Results are playful and competitive: show scores, ranking, and light variety-show titles after all rounds.

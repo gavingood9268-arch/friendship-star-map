@@ -33,6 +33,9 @@ page.on('console', (message) => { if (message.type() === 'error') errors.push(`c
 page.on('pageerror', (error) => errors.push(`page: ${error.message}`));
 await page.goto(`${base}?room=${code}`, { waitUntil: 'networkidle' });
 await page.getByText('选手正在入场').waitFor();
+await page.getByRole('button', { name: '换头像' }).click();
+await page.locator('.avatar-modal input[type="file"]').setInputFiles(fileURLToPath(new URL('../public/assets/avatar-lin.png', import.meta.url)));
+await page.locator('.avatar-modal').waitFor({ state: 'hidden' });
 await page.screenshot({ path: pathFor('party-lobby-edge-390x844.png'), fullPage: true });
 
 for (const player of players.slice(1)) await act(player, { type: 'ready' });
@@ -47,9 +50,10 @@ for (let round = 0; round < 2; round += 1) {
 await act(players[1], { type: 'chat', text: '我已经知道是谁了' });
 await act(players[3], { type: 'chat', text: '别看我，真的不是我' });
 await act(players[4], { type: 'chat', text: '这题也太明显了' });
+const currentPrompt = state.room.currentQuestion.prompt;
 for (const player of players.slice(1)) await act(player, { type: 'answer', value: players[3].participantId });
 
-await page.getByText('谁最可能说“马上到”但还没出门？').waitFor();
+await page.getByText(currentPrompt).waitFor();
 await page.locator('.choice-grid .player-avatar').nth(3).click();
 await page.screenshot({ path: pathFor('party-game-edge-390x844.png') });
 

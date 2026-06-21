@@ -3,26 +3,29 @@ import { createReadStream, existsSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { WebSocketServer } from 'ws';
+import { createRoundSet } from './question-bank.mjs';
 
 const port = Number(process.env.PORT || 4173);
 const root = join(process.cwd(), 'dist');
 const rooms = new Map();
 const sockets = new Map();
-const DEFAULT_QUESTIONS = [
-  { type: 'point', prompt: '谁最可能半夜突然想吃火锅？' },
-  { type: 'choice', prompt: '群里突然安静，大家通常在干嘛？', options: ['偷偷潜水', '认真工作', '刷视频忘了回', '等别人先说话'] },
-  { type: 'point', prompt: '谁最可能说“马上到”但还没出门？' },
-  { type: 'choice', prompt: '临时多出一天假，大家最想怎么过？', options: ['睡到自然醒', '立刻出去玩', '在家打游戏', '约一桌好吃的'] },
-  { type: 'point', prompt: '谁最适合保管全群人的秘密？' },
-  { type: 'choice', prompt: '朋友生日，大家最可能准备什么？', options: ['认真挑礼物', '制造惊喜局', '发超长小作文', '请一顿好吃的'] },
-  { type: 'point', prompt: '谁最可能在旅行前做满满一页攻略？' },
-  { type: 'choice', prompt: '一起看电影时，大家最怕遇到什么？', options: ['剧透的人', '迟到的人', '一直讲话的人', '选片两小时的人'] },
-  { type: 'point', prompt: '谁最可能一边说不困一边先睡着？' },
-  { type: 'choice', prompt: '这群人的默契最像哪一种？', options: ['一个眼神就懂', '互相拆台也懂', '关键时刻很稳', '全靠临场发挥'] },
-];
-
+const avatarImages = new Map();
 const makeCode = () => randomBytes(3).toString('hex').toUpperCase();
 const makeSecret = () => randomBytes(18).toString('base64url');
+const storeAvatar = (dataUrl) => {
+  if (!dataUrl) return null;
+  const match = String(dataUrl).match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) throw new Error('头像格式无效');
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!buffer.length || buffer.length > 180_000) throw new Error('头像图片过大');
+  const id = makeSecret();
+  avatarImages.set(id, { buffer, type: match[1] === 'jpeg' ? 'image/jpeg' : `image/${match[1]}` });
+  return id;
+};
+const clearAvatar = (participant) => {
+  if (participant?.avatarImageId) avatarImages.delete(participant.avatarImageId);
+  if (participant) participant.avatarImageId = null;
+};
 const json = (response, status, value) => {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   response.end(JSON.stringify(value));
@@ -63,7 +66,7 @@ const publicRoom = (room, viewerId) => ({
   guessCount: Object.keys(room.guesses).length,
   viewerSubmitted: room.phase === 'guess' ? Object.hasOwn(room.guesses, viewerId) : Object.hasOwn(room.answers, viewerId),
   reveal: revealFor(room),
-  participants: room.participants.map(({ token, deviceId, ...participant }) => participant),
+  participants: room.participants.map(({ token, deviceId, avatarImageId, ...participant }) => ({ ...participant, avatarUrl: avatarImageId ? `/api/avatars/${avatarImageId}` : null })),
   chat: room.chat.slice(-30),
 });
 const broadcast = (room) => {
@@ -84,19 +87,27 @@ const finishRound = (room) => {
   room.phase = 'reveal';
   room.status = 'reveal';
 };
-const newParticipant = ({ name, avatar, deviceId }, host = false) => ({
-  id: makeSecret(), token: makeSecret(), deviceId: String(deviceId || '').slice(0, 80),
+const newParticipant = ({ name, avatar, deviceId, customAvatar }, host = false) => ({
+  id: makeSecret(), token: makeSecret(), deviceId: String(deviceId || '').slice(0, 80), avatarImageId: storeAvatar(customAvatar),
   name: String(name || '').trim().slice(0, 8), avatar: Math.max(0, Math.min(4, Number(avatar) || 0)),
   host, ready: host, online: false, score: 0,
 });
 
 const handleApi = async (request, response, url) => {
+  const avatarMatch = url.pathname.match(/^\/api\/avatars\/([A-Za-z0-9_-]+)$/);
+  if (request.method === 'GET' && avatarMatch) {
+    const image = avatarImages.get(avatarMatch[1]);
+    if (!image) return json(response, 404, { error: '头像不存在' });
+    response.writeHead(200, { 'Content-Type': image.type, 'Content-Length': image.buffer.length, 'Cache-Control': 'public, max-age=86400, immutable' });
+    response.end(image.buffer);
+    return true;
+  }
   if (request.method === 'POST' && url.pathname === '/api/game-rooms') {
     const body = await readBody(request);
     if (!body.name?.trim()) return json(response, 400, { error: '请填写游戏名' });
     let code = makeCode(); while (rooms.has(code)) code = makeCode();
     const participant = newParticipant(body, true);
-    const room = { code, status: 'waiting', phase: 'answer', roundIndex: 0, createdAt: Date.now(), participants: [participant], questions: DEFAULT_QUESTIONS.map((question) => ({ ...question, options: question.options ? [...question.options] : undefined })), answers: {}, guesses: {}, chat: [] };
+    const room = { code, status: 'waiting', phase: 'answer', roundIndex: 0, createdAt: Date.now(), participants: [participant], questions: createRoundSet(10), answers: {}, guesses: {}, chat: [] };
     rooms.set(code, room);
     return json(response, 201, { room: publicRoom(room, participant.id), participantId: participant.id, token: participant.token });
   }
@@ -124,22 +135,34 @@ const handleApi = async (request, response, url) => {
     const participant = findParticipant(room, body.participantId, body.token);
     if (!participant) return json(response, 403, { error: '身份已经失效' });
     if (body.type === 'ready' && room.status === 'waiting' && !participant.host) participant.ready = typeof body.value === 'boolean' ? body.value : !participant.ready;
+    if (body.type === 'avatar') {
+      if (body.customAvatar) {
+        const nextAvatarId = storeAvatar(body.customAvatar);
+        clearAvatar(participant);
+        participant.avatarImageId = nextAvatarId;
+      } else {
+        clearAvatar(participant);
+        participant.avatar = Math.max(0, Math.min(4, Number(body.avatar) || 0));
+      }
+    }
     if (body.type === 'add-question' && room.status !== 'finished') {
       if (!participant.host) return json(response, 403, { error: '只有房主能加题' });
       const prompt = String(body.prompt || '').trim().slice(0, 60);
       if (prompt.length < 4) return json(response, 400, { error: '题目至少写4个字' });
       if (room.questions.filter((question) => question.custom).length >= 5) return json(response, 409, { error: '每局最多加5道自定义题' });
       const insertAt = room.status === 'waiting' ? Math.max(1, room.questions.length - 1) : Math.min(room.roundIndex + 1, room.questions.length);
-      room.questions.splice(insertAt, 0, { type: 'point', prompt, custom: true });
+      room.questions.splice(insertAt, 0, { category: '玩家加题', type: 'point', prompt, custom: true });
       room.chat.push({ id: makeSecret(), participantId: participant.id, name: '节目组', text: `房主加了一道题：${prompt}`, createdAt: Date.now(), system: true });
     }
     if (body.type === 'remove' && room.status === 'waiting') {
       if (!participant.host) return json(response, 403, { error: '只有房主能移除离线玩家' });
       const target = room.participants.find((item) => item.id === String(body.targetId));
       if (!target || target.host || target.online) return json(response, 409, { error: '只能移除已经离线的玩家' });
+      clearAvatar(target);
       room.participants = room.participants.filter((item) => item.id !== target.id);
     }
     if (body.type === 'leave' && room.status === 'waiting') {
+      clearAvatar(participant);
       room.participants = room.participants.filter((item) => item.id !== participant.id);
       if (participant.host && room.participants.length) {
         room.participants[0].host = true;
@@ -229,5 +252,5 @@ websocketServer.on('connection', (socket, room, participant) => {
     broadcast(room);
   });
 });
-setInterval(() => { const cutoff = Date.now() - 24 * 60 * 60 * 1000; for (const [code, room] of rooms) if (room.createdAt < cutoff) { rooms.delete(code); sockets.delete(code); } }, 60 * 60 * 1000).unref();
+setInterval(() => { const cutoff = Date.now() - 24 * 60 * 60 * 1000; for (const [code, room] of rooms) if (room.createdAt < cutoff) { for (const participant of room.participants) clearAvatar(participant); rooms.delete(code); sockets.delete(code); } }, 60 * 60 * 1000).unref();
 server.listen(port, '0.0.0.0', () => console.log(`默契大挑战运行于 http://0.0.0.0:${port}`));

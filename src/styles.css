@@ -27,10 +27,13 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .entry-panel input, .chat-compose input { width: 100%; border: 1px solid #55488e; outline: 0; background: #0d0836; border-radius: 13px; }
 .entry-panel label > input { height: 48px; margin-top: 7px; padding: 0 13px; font-size: 16px; }
 .entry-panel input:focus, .chat-compose input:focus { border-color: #41d8ff; box-shadow: 0 0 0 3px rgba(65,216,255,.12); }
-.avatar-picker { display: flex; justify-content: space-between; margin: 14px 0 18px; }
-.avatar-picker button { width: 52px; height: 52px; padding: 2px; border: 2px solid transparent; background: transparent; border-radius: 50%; }
-.avatar-picker button.selected { border-color: #ffd127; box-shadow: 0 0 14px #ffb927; }
-.avatar-picker img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.avatar-picker { display: flex; justify-content: space-between; gap: 3px; margin: 14px 0 18px; }
+.avatar-picker button, .upload-avatar { width: 48px; height: 48px; padding: 2px; border: 2px solid transparent; background: transparent; border-radius: 50%; }
+.avatar-picker button.selected, .upload-avatar.selected { border-color: #ffd127; box-shadow: 0 0 14px #ffb927; }
+.avatar-picker img, .upload-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.upload-avatar { position: relative; display: grid; place-items: center; align-content: center; flex: 0 0 48px; color: #5ee0ff; border-color: #5d4c92; background: #160d46; cursor: pointer; font-size: 17px; }
+.upload-avatar input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.upload-avatar span { font-size: 8px; font-weight: 800; }
 .primary-cta, .secondary-cta, .lock-button { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; min-height: 52px; border: 0; border-radius: 14px; font-weight: 900; }
 .primary-cta, .lock-button { color: #261000; background: #ffd127; box-shadow: 0 5px 0 #ad5410, 0 0 22px rgba(255,209,39,.35); }
 .secondary-cta { color: #fff; background: #6d31d8; box-shadow: 0 4px 0 #3f168e; }
@@ -61,6 +64,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .lobby-player > span { margin-top: 3px; font-size: 9px; }
 .lobby-player > span.online { color: #b8f337; }
 .lobby-player > span.offline { color: #958aae; }
+.change-avatar { display: flex; align-items: center; gap: 3px; margin-top: 3px; padding: 3px 7px; color: #72e5ff; border: 1px solid #4c7eae; background: #10204f; border-radius: 999px; font-size: 9px; }
 .remove-player { position: absolute; top: -4px; right: 4px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; color: #ff8cad; border: 1px solid #87415e; background: #2b0c31; border-radius: 50%; }
 .player-avatar { position: relative; display: grid; justify-items: center; gap: 3px; min-width: 0; padding: 0; border: 0; background: transparent; }
 .avatar-ring { --accent: #36d9ff; position: relative; display: block; width: 72px; height: 72px; padding: 3px; border: 2px solid var(--accent); background: #0a0634; border-radius: 50%; box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 70%, transparent); }
@@ -148,6 +152,9 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .rules-modal .primary-cta { margin-top: 18px; }
 .question-modal p { margin-top: -8px; font-size: 12px; }
 .question-modal .custom-question-row { margin-top: 15px; }
+.avatar-modal p { margin-top: -8px; color: #a99ec8; font-size: 12px; }
+.modal-picker { display: grid; grid-template-columns: repeat(3, 56px); justify-content: center; gap: 14px 20px; margin: 20px 0 2px; }
+.modal-picker button, .modal-picker .upload-avatar { width: 56px; height: 56px; }
 
 @media (min-width: 700px) {
   .party-frame { margin-top: 24px; margin-bottom: 24px; min-height: calc(100vh - 48px); border: 1px solid rgba(181,91,255,.5); border-radius: 24px; box-shadow: 0 0 50px rgba(110,41,205,.28); }
