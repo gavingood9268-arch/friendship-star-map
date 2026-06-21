@@ -8,7 +8,7 @@ const port = Number(process.env.PORT || 4173);
 const root = join(process.cwd(), 'dist');
 const rooms = new Map();
 const sockets = new Map();
-const QUESTIONS = [
+const DEFAULT_QUESTIONS = [
   { type: 'point', prompt: '谁最可能半夜突然想吃火锅？' },
   { type: 'choice', prompt: '群里突然安静，大家通常在干嘛？', options: ['偷偷潜水', '认真工作', '刷视频忘了回', '等别人先说话'] },
   { type: 'point', prompt: '谁最可能说“马上到”但还没出门？' },
@@ -41,7 +41,7 @@ const tally = (values) => {
 };
 const revealFor = (room) => {
   if (room.phase !== 'reveal') return null;
-  const question = QUESTIONS[room.roundIndex];
+  const question = room.questions[room.roundIndex];
   if (question.type === 'point') {
     const result = tally(Object.values(room.answers));
     const names = result.winners.map((id) => room.participants.find((item) => item.id === id)?.name).filter(Boolean);
@@ -56,8 +56,9 @@ const publicRoom = (room, viewerId) => ({
   status: room.status,
   phase: room.phase,
   roundIndex: room.roundIndex,
-  totalRounds: QUESTIONS.length,
-  currentQuestion: room.status === 'playing' || room.status === 'reveal' ? { ...QUESTIONS[room.roundIndex] } : null,
+  totalRounds: room.questions.length,
+  customQuestionCount: room.questions.filter((question) => question.custom).length,
+  currentQuestion: room.status === 'playing' || room.status === 'reveal' ? { ...room.questions[room.roundIndex] } : null,
   answerCount: Object.keys(room.answers).length,
   guessCount: Object.keys(room.guesses).length,
   viewerSubmitted: room.phase === 'guess' ? Object.hasOwn(room.guesses, viewerId) : Object.hasOwn(room.answers, viewerId),
@@ -72,7 +73,7 @@ const broadcast = (room) => {
 };
 const allSubmitted = (room, collection) => room.participants.every((item) => Object.hasOwn(collection, item.id));
 const finishRound = (room) => {
-  const question = QUESTIONS[room.roundIndex];
+  const question = room.questions[room.roundIndex];
   if (question.type === 'point') {
     const result = tally(Object.values(room.answers));
     for (const player of room.participants) if (result.winners.includes(String(room.answers[player.id]))) player.score += 1;
@@ -86,7 +87,7 @@ const finishRound = (room) => {
 const newParticipant = ({ name, avatar, deviceId }, host = false) => ({
   id: makeSecret(), token: makeSecret(), deviceId: String(deviceId || '').slice(0, 80),
   name: String(name || '').trim().slice(0, 8), avatar: Math.max(0, Math.min(4, Number(avatar) || 0)),
-  host, ready: host, score: 0,
+  host, ready: host, online: false, score: 0,
 });
 
 const handleApi = async (request, response, url) => {
@@ -95,7 +96,7 @@ const handleApi = async (request, response, url) => {
     if (!body.name?.trim()) return json(response, 400, { error: '请填写游戏名' });
     let code = makeCode(); while (rooms.has(code)) code = makeCode();
     const participant = newParticipant(body, true);
-    const room = { code, status: 'waiting', phase: 'answer', roundIndex: 0, createdAt: Date.now(), participants: [participant], answers: {}, guesses: {}, chat: [] };
+    const room = { code, status: 'waiting', phase: 'answer', roundIndex: 0, createdAt: Date.now(), participants: [participant], questions: DEFAULT_QUESTIONS.map((question) => ({ ...question, options: question.options ? [...question.options] : undefined })), answers: {}, guesses: {}, chat: [] };
     rooms.set(code, room);
     return json(response, 201, { room: publicRoom(room, participant.id), participantId: participant.id, token: participant.token });
   }
@@ -122,7 +123,32 @@ const handleApi = async (request, response, url) => {
     const body = await readBody(request);
     const participant = findParticipant(room, body.participantId, body.token);
     if (!participant) return json(response, 403, { error: '身份已经失效' });
-    if (body.type === 'ready' && room.status === 'waiting') participant.ready = true;
+    if (body.type === 'ready' && room.status === 'waiting' && !participant.host) participant.ready = typeof body.value === 'boolean' ? body.value : !participant.ready;
+    if (body.type === 'add-question' && room.status !== 'finished') {
+      if (!participant.host) return json(response, 403, { error: '只有房主能加题' });
+      const prompt = String(body.prompt || '').trim().slice(0, 60);
+      if (prompt.length < 4) return json(response, 400, { error: '题目至少写4个字' });
+      if (room.questions.filter((question) => question.custom).length >= 5) return json(response, 409, { error: '每局最多加5道自定义题' });
+      const insertAt = room.status === 'waiting' ? Math.max(1, room.questions.length - 1) : Math.min(room.roundIndex + 1, room.questions.length);
+      room.questions.splice(insertAt, 0, { type: 'point', prompt, custom: true });
+      room.chat.push({ id: makeSecret(), participantId: participant.id, name: '节目组', text: `房主加了一道题：${prompt}`, createdAt: Date.now(), system: true });
+    }
+    if (body.type === 'remove' && room.status === 'waiting') {
+      if (!participant.host) return json(response, 403, { error: '只有房主能移除离线玩家' });
+      const target = room.participants.find((item) => item.id === String(body.targetId));
+      if (!target || target.host || target.online) return json(response, 409, { error: '只能移除已经离线的玩家' });
+      room.participants = room.participants.filter((item) => item.id !== target.id);
+    }
+    if (body.type === 'leave' && room.status === 'waiting') {
+      room.participants = room.participants.filter((item) => item.id !== participant.id);
+      if (participant.host && room.participants.length) {
+        room.participants[0].host = true;
+        room.participants[0].ready = true;
+      }
+      if (!room.participants.length) rooms.delete(room.code);
+      broadcast(room);
+      return json(response, 200, { left: true });
+    }
     if (body.type === 'start') {
       if (!participant.host) return json(response, 403, { error: '只有房主能开始' });
       if (room.participants.length < 3) return json(response, 409, { error: '至少3人才开局' });
@@ -130,7 +156,7 @@ const handleApi = async (request, response, url) => {
       room.status = 'playing'; room.phase = 'answer'; room.roundIndex = 0; room.answers = {}; room.guesses = {};
     }
     if (body.type === 'answer' && room.status === 'playing' && room.phase === 'answer') {
-      const question = QUESTIONS[room.roundIndex];
+      const question = room.questions[room.roundIndex];
       const value = question.type === 'point' ? String(body.value) : Number(body.value);
       const valid = question.type === 'point' ? room.participants.some((item) => item.id === value) : Number.isInteger(value) && value >= 0 && value < question.options.length;
       if (!valid) return json(response, 400, { error: '这个答案无效' });
@@ -141,13 +167,13 @@ const handleApi = async (request, response, url) => {
     }
     if (body.type === 'guess' && room.status === 'playing' && room.phase === 'guess') {
       const value = Number(body.value);
-      if (!Number.isInteger(value) || value < 0 || value >= QUESTIONS[room.roundIndex].options.length) return json(response, 400, { error: '这个答案无效' });
+      if (!Number.isInteger(value) || value < 0 || value >= room.questions[room.roundIndex].options.length) return json(response, 400, { error: '这个答案无效' });
       if (!Object.hasOwn(room.guesses, participant.id)) room.guesses[participant.id] = value;
       if (allSubmitted(room, room.guesses)) finishRound(room);
     }
     if (body.type === 'next' && room.phase === 'reveal') {
       if (!participant.host) return json(response, 403, { error: '等房主进入下一题' });
-      if (room.roundIndex >= QUESTIONS.length - 1) { room.status = 'finished'; }
+      if (room.roundIndex >= room.questions.length - 1) { room.status = 'finished'; }
       else { room.roundIndex += 1; room.phase = 'answer'; room.status = 'playing'; room.answers = {}; room.guesses = {}; }
     }
     if (body.type === 'chat') {
@@ -192,8 +218,16 @@ websocketServer.on('connection', (socket, room, participant) => {
   if (!sockets.has(room.code)) sockets.set(room.code, new Set());
   const client = { socket, participantId: participant.id };
   sockets.get(room.code).add(client);
+  participant.online = true;
   socket.send(JSON.stringify({ type: 'room', room: publicRoom(room, participant.id) }));
-  socket.on('close', () => sockets.get(room.code)?.delete(client));
+  broadcast(room);
+  socket.on('close', () => {
+    const roomSockets = sockets.get(room.code);
+    roomSockets?.delete(client);
+    participant.online = [...(roomSockets || [])].some((item) => item.participantId === participant.id);
+    if (!roomSockets?.size) sockets.delete(room.code);
+    broadcast(room);
+  });
 });
-setInterval(() => { const cutoff = Date.now() - 24 * 60 * 60 * 1000; for (const [code, room] of rooms) if (room.createdAt < cutoff) rooms.delete(code); }, 60 * 60 * 1000).unref();
+setInterval(() => { const cutoff = Date.now() - 24 * 60 * 60 * 1000; for (const [code, room] of rooms) if (room.createdAt < cutoff) { rooms.delete(code); sockets.delete(code); } }, 60 * 60 * 1000).unref();
 server.listen(port, '0.0.0.0', () => console.log(`默契大挑战运行于 http://0.0.0.0:${port}`));

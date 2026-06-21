@@ -8,12 +8,12 @@ When implementing from a selected generated mock, treat that image as the source
 
 ## Locked product decisions
 
-- Use the deep-space “双人星图” visual direction selected by the user.
-- Both participants independently enter the name they use for the other person before the room starts.
-- Inject the counterpart's entered name into every question and option; never use generic “朋友” or “TA” in assessment copy.
-- Show both players' progress, but never expose answers before both submit.
-- Keep current level, expected level, self-assessment, and assessment of the other person separate.
-- Default experience: 12 core scenarios (two per dimension), followed by 6 optional depth scenarios.
-- Results are private, non-competitive, and use neutral difference language.
-- Each participant can send up to three live “side questions”; these never affect the six-dimension score and can be answered, deferred, or skipped.
-- Display the shared behavioral progress with one decimal place, while keeping current and expected relationship tiers as explicit integer choices.
+- The product is a 3–8 player real-time party game named “默契大挑战”, not a friendship-rating tool.
+- Use the selected neon Chinese variety-show visual reference at `public/assets/party-reference.png`.
+- The game must work in WeChat without microphone, camera, or login; interaction is tap choices, text chat, and graphical quick reactions.
+- Never reveal individual answers before the round reaches its reveal phase.
+- Keep a visible shared answer count and compact player score strip throughout the game.
+- The host may add up to five live custom “谁最可能” questions; when added during play, the next custom question appears immediately after the current round.
+- Readiness is reversible. Waiting-room players have online/offline presence, may leave explicitly, and host ownership transfers when the host leaves.
+- Preserve device-based session recovery so refresh or reopening a valid invite does not consume another seat.
+- Results are playful and competitive: show scores, ranking, and light variety-show titles after all rounds.
